@@ -1,0 +1,31 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Coupon extends Model
+{
+    use HasFactory;
+
+    protected $table = 'coupons';
+
+    protected $fillable = [
+        'employee_id',
+        'code',
+        'discount_type',
+        'discount_value',
+        'min_amount',
+        'max_discount',
+        'payment_type',
+        'expiry_date',
+        'status',
+        'is_visible',
+    ];
+
+    public function employee()
+    {
+        return $this->belongsTo(User::class, 'employee_id');
+    }
+}
