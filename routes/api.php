@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\ChatApiController;
 use App\Http\Controllers\Api\CallApiController;
 use App\Http\Controllers\Api\EasyGoApiController;
 use App\Http\Controllers\Api\CategoryApiController;
+use App\Http\Controllers\Api\SearchApiController;
 use App\Http\Controllers\Api\ProductApiController;
 use App\Http\Controllers\Api\CartApiController;
 use App\Http\Controllers\Api\OrderApiController;
@@ -95,6 +96,9 @@ Route::get('banners', [BannerApiController::class, 'index']);
 // CATEGORIES
 Route::get('/categories', [CategoryApiController::class, 'index']);
 Route::get('/categories/{slug}', [CategoryApiController::class, 'show']);
+
+// Search
+Route::middleware('throttle:60,1')->get('/v1/search', [SearchApiController::class, 'index']);
 
 // PRODUCTS
 Route::get('/products', [ProductApiController::class, 'index']);
