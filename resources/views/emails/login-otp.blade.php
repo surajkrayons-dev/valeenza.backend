@@ -18,7 +18,7 @@
                         <td
                             style="background:linear-gradient(135deg,#e65100,#fb8c00);padding:22px;text-align:center;color:#fff;">
 
-                            <h2 style="margin:0;">🔐 Astrotring Shop</h2>
+                            <h2 style="margin:0;">🔐 Valeenza</h2>
 
                             <p style="margin:5px 0 0;font-size:13px;">
                                 ✨ Secure Login Verification ✨
@@ -37,11 +37,12 @@
 
                             <p style="color:#555;font-size:14px;line-height:24px;">
                                 Hi <b>{{ $name }}</b>,<br>
-                                Use the following OTP to securely login into your Astrotring account.
+                                Use the following OTP to securely login into your Valeenza account.
                             </p>
 
                             <!-- OTP BOX -->
-                            <div style="
+                            <div
+                                style="
                                 margin:30px auto;
                                 width:220px;
                                 background:#fff8f0;
@@ -79,7 +80,7 @@
                                     <td style="font-size:13px;color:#666;line-height:22px;">
 
                                         🔒 Never share your OTP with anyone.<br>
-                                        🛡️ Astrotring team will never ask for your OTP.
+                                        🛡️ Valeenza team will never ask for your OTP.
 
                                     </td>
                                 </tr>
@@ -93,7 +94,7 @@
                     <tr>
                         <td style="background:#ffe0b2;text-align:center;padding:15px;font-size:12px;color:#666;">
 
-                            🙏 Thank you for trusting Astrotring Shop 💫<br>
+                            🙏 Thank you for trusting Valeenza 💫<br>
                             We wish you positivity & success 🌟
 
                         </td>
