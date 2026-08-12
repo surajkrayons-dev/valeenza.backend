@@ -16,13 +16,13 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id');
             $table->string('name');
             $table->string('email')->nullable();
-            $table->string('country_code', 5)->default('+91');
+            $table->string('country_code', 5)->default('+1');
             $table->string('mobile');
             $table->string('alternative_mobile')->nullable();
             $table->string('city');
             $table->string('state_code', 10)->nullable();
             $table->string('state');
-            $table->string('country')->default('India');
+            $table->string('country')->default('United States');
             $table->text('address');
             $table->string('pincode', 10);
             $table->tinyInteger('by_default')->default(0);

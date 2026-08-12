@@ -695,6 +695,7 @@ class StoreStripePaymentController extends Controller
                 'city' => $address->city ?? null,
                 'state_code' => $address->state_code ?? null,
                 'state' => $address->state ?? null,
+                'country' => $address->country ?? null,
                 'address' => $address->address ?? null,
                 'pincode' => $address->pincode ?? null,
                 'taxable_amount' => round($productTaxableAmount + $shippingTaxable, 2),
