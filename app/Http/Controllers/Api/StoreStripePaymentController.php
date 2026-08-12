@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Razorpay\Api\Api;
+use Stripe\Stripe;
+use Stripe\PaymentIntent;
+use Stripe\PaymentMethod;
+use Stripe\Webhook;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\EmployeeCommission;
@@ -21,9 +24,9 @@ use App\Models\StoreWalletTransaction;
 use App\Models\OrderItemCancellation;
 use App\Models\Coupon;
 
-class StoreRazorpayPaymentController extends Controller
+class StoreStripePaymentController extends Controller
 {
-    protected $isTest = false; // true = test | false = live
+    protected $isTest = true; // true = test | false = live
 
     public function createOrder(Request $request)
     {
@@ -99,7 +102,6 @@ class StoreRazorpayPaymentController extends Controller
                     }
                 }
 
-                // SAFETY
                 $discount = min($discount, $subtotal);
 
                 $couponId = $coupon->id;
@@ -120,12 +122,11 @@ class StoreRazorpayPaymentController extends Controller
                         ->first();
 
                     if ($deliveryRate) {
-                        $deliveryCharge = $subtotal >= 800 ? 0 : (float) $deliveryRate->delivery_charge;
+                        $deliveryCharge = $subtotal >= 5 ? 0 : (float) $deliveryRate->delivery_charge;
                     }
                 }
             }
 
-            // ðŸ”¥ WALLET VALIDATION (USER CONTROLLED)
             $wallet = StoreWallet::where('user_id', $user->id)
                 ->first();
 
@@ -152,7 +153,6 @@ class StoreRazorpayPaymentController extends Controller
 
             $finalAmount = max(0, ($afterDiscount + $deliveryCharge) - $walletUsed);
 
-            // FULL WALLET PAYMENT
             if ($finalAmount <= 0) {
 
                 return response()->json([
@@ -169,28 +169,45 @@ class StoreRazorpayPaymentController extends Controller
                 ]);
             }
 
-            // ðŸ”¥ RAZORPAY
-            $api = new Api(env('RAZORPAY_KEY'), env('RAZORPAY_SECRET'));
+            Stripe::setApiKey(config('services.stripe.secret'));
 
-            $order = $api->order->create([
-                'receipt' => 'store_' . uniqid(),
+            $idempotencyKey = 'store_pi_' . md5(implode('|', [
+                $user->id,
+                $cart->id,
+                $request->address_id,
+                $request->coupon_code,
+                $walletUsed,
+                $finalAmount,
+            ]));
+
+            $paymentIntent = PaymentIntent::create([
                 'amount' => (int) round($finalAmount * 100),
-                'currency' => 'INR',
-
-                'notes' => [
+                'currency' => 'usd',
+                'metadata' => [
                     'user_id' => $user->id,
+                    'platform' => config('store.platform'),
+                    'order_type' => config('store.order_type'),
                     'address_id' => $request->address_id,
+                    'coupon_code' => $request->coupon_code,
+                    'wallet_used' => $walletUsed,
                     'subtotal' => $subtotal,
                     'discount' => $discount,
                     'delivery_charge' => $deliveryCharge,
-                    'wallet_used' => $walletUsed,
-                    'final_amount' => $finalAmount
-                ]
+                    'final_amount' => $finalAmount,
+                    'environment' => app()->environment(),
+                ],
+                'automatic_payment_methods' => ['enabled' => true],
+            ], [
+                'idempotency_key' => $idempotencyKey,
             ]);
 
             return response()->json([
                 'status' => true,
-                'order_id' => $order['id'],
+                'order_id' => $paymentIntent->id,
+                'client_secret' => $paymentIntent->client_secret,
+                'payment_intent_id' => $paymentIntent->id,
+                'amount' => round($finalAmount, 2),
+                'currency' => 'usd',
                 'breakdown' => [
                     'subtotal' => $subtotal,
                     'discount' => $discount,
@@ -212,13 +229,11 @@ class StoreRazorpayPaymentController extends Controller
             ], 422);
         }
     }
- 
+
     public function verify(Request $request)
     {
         $request->validate([
-            'razorpay_order_id' => 'nullable',
-            'razorpay_payment_id' => 'nullable',
-            'razorpay_signature' => 'nullable',
+            'payment_intent_id' => 'nullable',
             'address_id' => 'nullable|exists:alternative_addresses,id',
             'coupon_code' => 'nullable',
             'wallet_amount' => 'nullable|numeric|min:0'
@@ -231,9 +246,8 @@ class StoreRazorpayPaymentController extends Controller
             $user = $request->user();
             $walletInput = $request->wallet_amount ?? 0;
 
-            // ðŸ”¥ CART
-            $cart = Cart::where('user_id', $user->id)->firstOrFail();
-            $items = CartItem::where('cart_id', $cart->id)->get();
+            $cart = Cart::where('user_id', $user->id)->lockForUpdate()->firstOrFail();
+            $items = CartItem::where('cart_id', $cart->id)->lockForUpdate()->get();
 
             if ($items->isEmpty()) {
                 throw new \Exception('Cart empty');
@@ -256,7 +270,6 @@ class StoreRazorpayPaymentController extends Controller
                     throw new \Exception('Product not found');
                 }
 
-                // FINAL STOCK CHECK
                 if ($product->stock_qty < $item->quantity) {
 
                     throw new \Exception(
@@ -341,7 +354,7 @@ class StoreRazorpayPaymentController extends Controller
                         ->first();
 
                     if ($deliveryRate) {
-                        $deliveryCharge = $subtotal >= 800 ? 0 : (float) $deliveryRate->delivery_charge;
+                        $deliveryCharge = $subtotal >= 5 ? 0 : (float) $deliveryRate->delivery_charge;
                     }
                 }
             }
@@ -369,7 +382,7 @@ class StoreRazorpayPaymentController extends Controller
             $walletUsed = $walletInput;
             $finalAmount = max(0, ($afterDiscount + $deliveryCharge) - $walletUsed);
 
-            if ($finalAmount > 0 && !$request->razorpay_payment_id) {
+            if ($finalAmount > 0 && !$request->payment_intent_id) {
                 throw new \Exception('Payment required');
             }
 
@@ -380,7 +393,7 @@ class StoreRazorpayPaymentController extends Controller
 
             if ($finalAmount > 0) {
 
-                $existing = Payment::where('transaction_id', $request->razorpay_payment_id)->first();
+                $existing = Payment::where('transaction_id', $request->payment_intent_id)->first();
                 if ($existing) {
                     DB::commit();
                     return response()->json(['status' => true, 'message' => 'Already processed']);
@@ -388,21 +401,88 @@ class StoreRazorpayPaymentController extends Controller
 
                 if (!$this->isTest) {
 
-                    $api = new Api(env('RAZORPAY_KEY'), env('RAZORPAY_SECRET'));
+                    Stripe::setApiKey(config('services.stripe.secret'));
 
-                    $api->utility->verifyPaymentSignature([
-                        'razorpay_order_id' => $request->razorpay_order_id,
-                        'razorpay_payment_id' => $request->razorpay_payment_id,
-                        'razorpay_signature' => $request->razorpay_signature
-                    ]);
+                    $intent = PaymentIntent::retrieve($request->payment_intent_id);
 
-                    $paymentData = $api->payment->fetch($request->razorpay_payment_id);
-
-                    if (($paymentData['status'] ?? '') !== 'captured') {
+                    if ($intent->status !== 'succeeded') {
                         throw new \Exception('Payment not captured');
                     }
 
-                    $paymentMode = $paymentData['method'] ?? 'online';
+                    $expectedAmountInCents = (int) round($finalAmount * 100);
+
+                    if ((int) $intent->amount !== $expectedAmountInCents) {
+
+                        Log::error('STRIPE AMOUNT MISMATCH', [
+                            'payment_intent_id' => $intent->id,
+                            'expected' => $expectedAmountInCents,
+                            'actual' => $intent->amount
+                        ]);
+
+                        throw new \Exception('Payment amount mismatch');
+                    }
+
+                    if (strtolower($intent->currency) !== 'usd') {
+
+                        Log::error('STRIPE CURRENCY MISMATCH', [
+                            'payment_intent_id' => $intent->id,
+                            'currency' => $intent->currency
+                        ]);
+
+                        throw new \Exception('Payment currency mismatch');
+                    }
+
+                    $metaUserId = $intent->metadata['user_id'] ?? null;
+                    $metaPlatform = $intent->metadata['platform'] ?? null;
+                    $metaOrderType = $intent->metadata['order_type'] ?? null;
+
+                    if (
+                        (string) $metaUserId !== (string) $user->id ||
+                        $metaPlatform !== config('store.platform') ||
+                        $metaOrderType !== config('store.order_type')
+                    ) {
+
+                        Log::error('STRIPE METADATA MISMATCH', [
+                            'payment_intent_id' => $intent->id,
+                            'expected_user_id' => $user->id,
+                            'meta_user_id' => $metaUserId,
+                            'meta_platform' => $metaPlatform,
+                            'meta_order_type' => $metaOrderType
+                        ]);
+
+                        throw new \Exception('Payment verification failed');
+                    }
+
+                    $metaEnvironment = $intent->metadata['environment'] ?? null;
+
+                    if ($metaEnvironment !== app()->environment()) {
+
+                        Log::error('STRIPE ENVIRONMENT MISMATCH', [
+                            'payment_intent_id' => $intent->id,
+                            'expected_environment' => app()->environment(),
+                            'meta_environment' => $metaEnvironment
+                        ]);
+
+                        throw new \Exception('Payment verification failed');
+                    }
+
+                    $paymentData = $intent->toArray();
+
+                    $paymentMode = 'online';
+
+                    if ($intent->payment_method) {
+
+                        $paymentMethod = PaymentMethod::retrieve($intent->payment_method);
+
+                        $paymentMode = $paymentMethod->type;
+
+                        if (
+                            $paymentMethod->type === 'card' &&
+                            !empty($paymentMethod->card->wallet->type ?? null)
+                        ) {
+                            $paymentMode = $paymentMethod->card->wallet->type;
+                        }
+                    }
 
                 } else {
                     $paymentData = $request->all();
@@ -411,12 +491,12 @@ class StoreRazorpayPaymentController extends Controller
 
                 $payment = Payment::create([
                     'user_id' => $user->id,
-                    'platform' => 'astrotring_store',
-                    'order_id' => $request->razorpay_order_id,
-                    'payment_gateway' => 'razorpay',
-                    'transaction_id' => $request->razorpay_payment_id,
-                    'amount' => $finalAmount,
-                    'currency' => 'INR',
+                    'platform' => 'valeenza',
+                    'order_id' => $request->payment_intent_id,
+                    'payment_gateway' => 'stripe',
+                    'transaction_id' => $request->payment_intent_id,
+                    'amount' => round($finalAmount, 2),
+                    'currency' => 'USD',
                     'payment_status' => 'success',
                     'payment_mode' => $paymentMode,
 
@@ -446,15 +526,13 @@ class StoreRazorpayPaymentController extends Controller
                     ->first();
             }
 
-            $sellerState = 'Delhi';
-
             $productTax = 0;
             $productTaxableAmount = 0;
 
             $shippingTax = 0;
             $shippingTaxable = 0;
 
-            $gstRate = 0;
+            $productTaxRate = config('tax.product_rate');
 
             $hsnCodes = [];
 
@@ -468,17 +546,13 @@ class StoreRazorpayPaymentController extends Controller
 
                 $itemTotal = $item->total_price;
 
-                // PRODUCT GST
-                $itemGstRate = $product->gst_rate ?? 0;
-
-                // PRODUCT HSN
+                // PRODUCT HSN CODE
                 if ($product->hsn_code) {
                     $hsnCodes[] = $product->hsn_code;
                 }
 
-                // TAX CALCULATION
                 $itemTax = round(
-                    ($itemTotal * $itemGstRate) / 100,
+                    ($itemTotal * $productTaxRate) / 100,
                     2
                 );
 
@@ -489,27 +563,21 @@ class StoreRazorpayPaymentController extends Controller
 
                 $productTaxableAmount += $itemTaxableAmount;
                 $productTax += $itemTax;
-
-                // SAVE GST RATE
-                $gstRate = $itemGstRate;
             }
 
             $hsnCodes = array_unique($hsnCodes);
 
             $hsnCode = implode(',', $hsnCodes);
 
-            $cgstAmount = 0;
-            $sgstAmount = 0;
-            $igstAmount = 0;
+            $shippingTaxRate = config('tax.shipping_rate');
 
-            $shippingGstRate = 18;
             $shippingTaxable = 0;
             $shippingTax = 0;
 
             if ($deliveryCharge > 0) {
 
                 $shippingTax = round(
-                    ($deliveryCharge * $shippingGstRate) / 100,
+                    ($deliveryCharge * $shippingTaxRate) / 100,
                     2
                 );
 
@@ -520,38 +588,15 @@ class StoreRazorpayPaymentController extends Controller
 
             }
 
+            $taxType = 'us_sales_tax';
+
             $productCgstAmount = 0;
             $productSgstAmount = 0;
-            $productIgstAmount = 0;
+            $productIgstAmount = $productTax;
 
             $shippingCgstAmount = 0;
             $shippingSgstAmount = 0;
-            $shippingIgstAmount = 0;
-
-            $taxType = null;
-
-            if (
-                $address &&
-                strtolower(trim($address->state))
-                    == strtolower(trim($sellerState))
-            ) {
-
-                $taxType = 'cgst_sgst';
-
-                $productCgstAmount = round($productTax / 2, 2);
-                $productSgstAmount = round($productTax / 2, 2);
-
-                $shippingCgstAmount = round($shippingTax / 2, 2);
-                $shippingSgstAmount = round($shippingTax / 2, 2);
-
-            } else {
-
-                $taxType = 'igst';
-
-                $productIgstAmount = $productTax;
-
-                $shippingIgstAmount = $shippingTax;
-            }
+            $shippingIgstAmount = $shippingTax;
 
             foreach ($items as $item) {
 
@@ -601,23 +646,26 @@ class StoreRazorpayPaymentController extends Controller
                 'payment_id' => $payment ? $payment->id : null,
                 'order_number' => 'ORD-' . strtoupper(uniqid()),
                 'invoice_sequence' => $nextInvoiceSequence,
-                'invoice_number' => 'AT-' . str_pad($nextInvoiceSequence, 4, '0', STR_PAD_LEFT),
+                'invoice_number' => 'VLNZ-' . str_pad($nextInvoiceSequence, 4, '0', STR_PAD_LEFT),
                 'hsn_code' => $hsnCode,
                 'subtotal' => $subtotal,
                 'discount' => $discount,
                 'wallet_used' => $walletUsed,
                 'delivery_charge' => $deliveryCharge,
-                'paid_amount' => $finalAmount,
-                'total_amount' => ($afterDiscount + $deliveryCharge),
+                'paid_amount' => round($finalAmount, 2),
+                'total_amount' => round($afterDiscount + $deliveryCharge, 2),
 
                 'price_breakdown' => [
                     'subtotal' => $subtotal,
                     'coupon_discount' => $discount,
                     'delivery_charge' => $deliveryCharge,
-                    'shipping_gst_rate' => $shippingGstRate,
-                    'shipping_gst_amount' => $shippingTax,
+
+                    'product_tax_rate' => $productTaxRate,
+                    'product_tax_amount' => $productTax,
+                    'shipping_tax_rate' => $shippingTaxRate,
+                    'shipping_tax_amount' => $shippingTax,
+
                     'shipping_taxable_amount' => $shippingTaxable,
-                    'product_gst_amount' => $productTax,
                     'product_taxable_amount' => $productTaxableAmount,
 
                     'product_cgst_amount' => $productCgstAmount,
@@ -628,18 +676,18 @@ class StoreRazorpayPaymentController extends Controller
                     'shipping_sgst_amount' => $shippingSgstAmount,
                     'shipping_igst_amount' => $shippingIgstAmount,
                     'wallet_used' => $walletUsed,
-                    'taxable_amount' => $productTaxableAmount + $shippingTaxable,
-                    'gst_rate' => $gstRate,
+                    'taxable_amount' => round($productTaxableAmount + $shippingTaxable, 2),
+                    'gst_rate' => $productTaxRate,
                     'tax_type' => $taxType,
                     'cgst_amount' => $productCgstAmount,
                     'sgst_amount' => $productSgstAmount,
                     'igst_amount' => $productIgstAmount,
-                    'paid_online' => $finalAmount,  
-                    'final_amount' => ($afterDiscount + $deliveryCharge)
+                    'paid_online' => round($finalAmount, 2),
+                    'final_amount' => round($afterDiscount + $deliveryCharge, 2)
                 ],
 
                 'address_id' => $request->address_id,
-                
+
                 'name' => $address->name ?? null,
                 'email' => $address->email ?? $user->email,
                 'mobile' => $address->mobile ?? null,
@@ -649,8 +697,8 @@ class StoreRazorpayPaymentController extends Controller
                 'state' => $address->state ?? null,
                 'address' => $address->address ?? null,
                 'pincode' => $address->pincode ?? null,
-                'taxable_amount' => $productTaxableAmount + $shippingTaxable,
-                'gst_rate' => $gstRate,
+                'taxable_amount' => round($productTaxableAmount + $shippingTaxable, 2),
+                'gst_rate' => $productTaxRate,
                 'cgst_amount' => $productCgstAmount,
                 'sgst_amount' => $productSgstAmount,
                 'igst_amount' => $productIgstAmount,
@@ -702,10 +750,9 @@ class StoreRazorpayPaymentController extends Controller
                     'total_spent' => $wallet->total_spent + $walletUsed
                 ]);
 
-                // StoreWalletTransaction::create([
                 $walletTransaction = StoreWalletTransaction::create([
                     'user_id' => $user->id,
-                    'order_id' => $order->id, // âœ… FIXED
+                    'order_id' => $order->id,
                     'type' => 'debit',
                     'amount' => $walletUsed,
                     'source' => 'order_payment',
@@ -730,10 +777,11 @@ class StoreRazorpayPaymentController extends Controller
                     $maxLength = max($maxLength, $product->length ?? 0);
                     $maxBreadth = max($maxBreadth, $product->breadth ?? 0);
                     $totalHeight += (($product->height ?? 0) * $item->quantity);
-                    $itemGstRate = $product->gst_rate ?? 0;
+
+                    $itemTaxRate = config('tax.product_rate');
 
                     $itemTax = round(
-                        ($item->total_price * $itemGstRate) / 100,
+                        ($item->total_price * $itemTaxRate) / 100,
                         2
                     );
 
@@ -744,17 +792,7 @@ class StoreRazorpayPaymentController extends Controller
 
                     $itemCgst = 0;
                     $itemSgst = 0;
-                    $itemIgst = 0;
-
-                    if ($taxType == 'cgst_sgst') {
-
-                        $itemCgst = round($itemTax / 2, 2);
-                        $itemSgst = round($itemTax / 2, 2);
-
-                    } else {
-
-                        $itemIgst = $itemTax;
-                    }
+                    $itemIgst = $itemTax;
 
                     OrderItem::create([
                         'order_id' => $order->id,
@@ -770,7 +808,7 @@ class StoreRazorpayPaymentController extends Controller
                         'length' => $product->length,
                         'breadth' => $product->breadth,
                         'height' => $product->height,
-                        'gst_rate' => $itemGstRate,
+                        'gst_rate' => $itemTaxRate,
                         'gst_amount' => $itemTax,
                         'taxable_amount' => $itemTaxableAmount,
                         'cgst_amount' => $itemCgst,
@@ -793,34 +831,34 @@ class StoreRazorpayPaymentController extends Controller
             DB::commit();
 
             $order->refresh()->load(['items', 'payment', 'user']);
-            
+
             $order->refresh();
 
             return response()->json([
                 'status' => true,
                 'message' => 'Order placed successfully',
-            
+
                 'order' => [
                     'order_id' => $order->id,
                     'invoice_number' => $order->invoice_number,
                     'order_number' => $order->order_number,
                     'status' => $order->status,
-            
+
                     'pricing' => [
                         'subtotal' => $subtotal,
                         'discount' => $discount,
-                        'taxable_amount' => $productTaxableAmount + $shippingTaxable,
-                        'gst_rate' => $gstRate,
+                        'taxable_amount' => round($productTaxableAmount + $shippingTaxable, 2),
+                        'gst_rate' => $productTaxRate,
                         'tax_type' => $taxType,
                         'cgst_amount' => $productCgstAmount,
                         'sgst_amount' => $productSgstAmount,
                         'igst_amount' => $productIgstAmount,
                         'wallet_used' => $walletUsed,
                         'delivery_charge' => $deliveryCharge,
-                        'paid_online' => $finalAmount,
-                        'final_amount' => ($afterDiscount + $deliveryCharge)
+                        'paid_online' => round($finalAmount, 2),
+                        'final_amount' => round($afterDiscount + $deliveryCharge, 2)
                     ],
-            
+
                     'payment' => $payment ? [
                         'transaction_id' => $payment->transaction_id,
                         'payment_gateway' => $payment->payment_gateway,
@@ -835,10 +873,10 @@ class StoreRazorpayPaymentController extends Controller
                         'payment_gateway' => 'wallet',
                         'payment_mode' => 'wallet_only',
                         'amount' => $walletUsed,
-                        'currency' => 'INR',
+                        'currency' => 'USD',
                         'status' => 'success',
                     ],
-            
+
                     'items' => $order->items->map(function ($item) {
                         return [
                             'product_id' => $item->product_id,
@@ -874,7 +912,86 @@ class StoreRazorpayPaymentController extends Controller
             ], 422);
         }
     }
-    
+
+    public function webhook(Request $request)
+    {
+        Stripe::setApiKey(config('services.stripe.secret'));
+
+        $payload = $request->getContent();
+        $sigHeader = $request->header('Stripe-Signature');
+        $endpointSecret = config('services.stripe.webhook_secret');
+
+        try {
+            $event = Webhook::constructEvent($payload, $sigHeader, $endpointSecret);
+        } catch (\Exception $e) {
+            Log::error('STRIPE WEBHOOK SIGNATURE ERROR', ['error' => $e->getMessage()]);
+            return response()->json(['status' => false], 400);
+        }
+
+        try {
+
+            switch ($event->type) {
+
+                case 'payment_intent.succeeded':
+
+                    $intent = $event->data->object;
+
+                    Payment::where('transaction_id', $intent->id)
+                        ->update(['payment_status' => 'success']);
+
+                    break;
+
+                case 'payment_intent.payment_failed':
+
+                    $intent = $event->data->object;
+
+                    Payment::where('transaction_id', $intent->id)
+                        ->update(['payment_status' => 'failed']);
+
+                    Log::error('STRIPE PAYMENT FAILED', ['payment_intent' => $intent->id]);
+
+                    break;
+
+                case 'charge.refunded':
+
+                    $charge = $event->data->object;
+
+                    Payment::where('transaction_id', $charge->payment_intent)
+                        ->update(['payment_status' => 'refunded']);
+
+                    Log::error('STRIPE CHARGE REFUNDED', ['payment_intent' => $charge->payment_intent]);
+
+                    break;
+
+                case 'charge.dispute.created':
+
+                    $dispute = $event->data->object;
+
+                    Payment::where('transaction_id', $dispute->payment_intent)
+                        ->update(['payment_status' => 'disputed']);
+
+                    Log::error('STRIPE DISPUTE CREATED', [
+                        'payment_intent' => $dispute->payment_intent,
+                        'reason' => $dispute->reason ?? null
+                    ]);
+
+                    break;
+
+                default:
+                    break;
+            }
+
+        } catch (\Exception $e) {
+
+            Log::error('STRIPE WEBHOOK PROCESSING ERROR', [
+                'event_type' => $event->type ?? null,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return response()->json(['status' => true]);
+    }
+
     public function calculateSummary(Request $request)
     {
         try {
@@ -923,7 +1040,7 @@ class StoreRazorpayPaymentController extends Controller
                     if ($deliveryRate) {
 
                         $deliveryCharge =
-                            $subtotal >= 800
+                            $subtotal >= 5
                                 ? 0
                                 : (float) $deliveryRate->delivery_charge;
                     }
@@ -940,8 +1057,7 @@ class StoreRazorpayPaymentController extends Controller
 
                     'delivery_charge' => $deliveryCharge,
 
-                    'final_amount' =>
-                        $subtotal + $deliveryCharge
+                    'final_amount' => round($subtotal + $deliveryCharge, 2)
                 ]
             ]);
 
@@ -988,7 +1104,6 @@ class StoreRazorpayPaymentController extends Controller
                 ]);
             }
 
-            // $refundAmount = $order->total_amount;
             $refundAmount = $order->subtotal;
 
             // ðŸ”¥ WALLET
@@ -1028,7 +1143,6 @@ class StoreRazorpayPaymentController extends Controller
             ]);
 
             // ðŸ”¥ ITEM-WISE REFUND (PROPORTIONAL)
-            // $totalOrderAmount = $order->total_amount;
             $totalOrderAmount = $order->subtotal;
 
             foreach ($order->items as $item) {
@@ -1054,7 +1168,7 @@ class StoreRazorpayPaymentController extends Controller
                     ]);
                 }
 
-                $itemTotal = $item->total; // âœ… à¤¸à¤¹à¥€ column
+                $itemTotal = $item->total;
 
                 $itemRefund = 0;
 
@@ -1111,7 +1225,6 @@ class StoreRazorpayPaymentController extends Controller
 
                 'cancel_reason' => $order->cancel_reason,
 
-                // ðŸ”¥ ADD THIS
                 'pricing' => $order->price_breakdown
             ]);
 

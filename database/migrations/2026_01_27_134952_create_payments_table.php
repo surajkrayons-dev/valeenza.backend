@@ -15,14 +15,14 @@ return new class extends Migration
             $table->id();
 
             $table->unsignedBigInteger('user_id');
-            $table->enum('platform', ['astrotring', 'astrotring_store']);
+            $table->enum('platform', ['astrotring', 'astrotring_store', 'valeenza']);
             $table->string('order_id')->nullable()->index();
             // $table->string('payment_gateway')->default('razorpay');
-            $table->enum('payment_gateway', ['razorpay', 'sbi', 'cod', 'cod_advance_paid']);
-            $table->string('transaction_id')->nullable()->index();
+            $table->enum('payment_gateway', ['razorpay', 'stripe', 'sbi', 'cod', 'cod_advance_paid']);
+            $table->string('transaction_id')->nullable()->unique();
             $table->decimal('amount', 12, 2);
-            $table->string('currency')->default('INR');
-            $table->enum('payment_status', ['pending','success', 'refunded', 'failed', 'cancelled'])->default('pending');
+            $table->string('currency')->default('USD');
+            $table->enum('payment_status', ['pending','success', 'refunded', 'failed', 'cancelled', 'disputed'])->default('pending');
             $table->string('payment_mode')->nullable();
             $table->string('customer_email')->nullable();
             $table->string('customer_phone')->nullable();

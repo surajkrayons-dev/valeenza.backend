@@ -46,4 +46,10 @@ return [
 
     'cod_charge' => env('COD_CHARGE', 75),
     'cod_advance_amount' => env('COD_ADVANCE_AMOUNT', 99),
+
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
 ];

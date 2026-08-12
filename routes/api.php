@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\BlogCategoryApiController;
 use App\Http\Controllers\Api\BlogApiController;
 use App\Http\Controllers\Api\PayoutApiController;
 use App\Http\Controllers\Api\RazorpayPaymentController;
+use App\Http\Controllers\Api\StoreStripePaymentController;
 use App\Http\Controllers\Api\StoreCodOrderController;
 use App\Http\Controllers\Api\StoreRazorpayPaymentController;
 use App\Http\Controllers\Api\WalletApiController;
@@ -42,6 +43,8 @@ use App\Http\Controllers\Api\HoroscopeGenerateController;
 |--------------------------------------------------------------------------
 */
 Route::post('/call/webhook', [EasyGoApiController::class, 'callWebhook']);
+
+Route::post('/store/payment/webhook', [StoreStripePaymentController::class, 'webhook']);
 
 // USER AUTH
 Route::prefix('user')->group(function () {
@@ -151,19 +154,6 @@ Route::middleware(['auth:sanctum', 'session.timeout'])->group(function () {
         Route::post('/verify', [RazorpayPaymentController::class, 'verify']);
     });
 
-    // store
-    // Route::prefix('store')->group(function () {
-    //     Route::post('/cod/create-order', [StoreCodOrderController::class, 'createCodOrder']);
-    //     Route::post('/cod/verify-payment', [StoreCodOrderController::class, 'verifyCodPayment']);
-    //     Route::get('/cod-charge', [StoreCodOrderController::class, 'getCodCharge']);
-    //     Route::post('/cod/cancel/{id}', [StoreCodOrderController::class, 'cancelCodOrder']);
-    //     Route::post('/create-order', [StoreRazorpayPaymentController::class, 'createOrder']);
-    //     Route::post('/verify-payment', [StoreRazorpayPaymentController::class, 'verify']);
-    //     Route::post('/calculate-summary', [StoreRazorpayPaymentController::class, 'calculateSummary']);
-    //     Route::post('/order/cancel/{id}', [StoreRazorpayPaymentController::class, 'cancelOrder']);
-    //     Route::get('/order/{id}', [StoreRazorpayPaymentController::class, 'orderDetails']);
-    // });
-
     Route::prefix('store')->group(function () {
         // COD
         Route::post('/cod/create-order', [StoreCodOrderController::class, 'placeOrder']);
@@ -174,11 +164,11 @@ Route::middleware(['auth:sanctum', 'session.timeout'])->group(function () {
         // Route::get('/cod-charge', [StoreCodOrderController::class, 'getCodCharge']);
         // Route::post('/cod/cancel/{id}', [StoreCodOrderController::class, 'cancelCodOrder']);
         // Razorpay
-        Route::post('/create-order', [StoreRazorpayPaymentController::class, 'createOrder']);
-        Route::post('/verify-payment', [StoreRazorpayPaymentController::class, 'verify']);
-        Route::post('/calculate-summary', [StoreRazorpayPaymentController::class, 'calculateSummary']);
-        Route::post('/order/cancel/{id}', [StoreRazorpayPaymentController::class, 'cancelOrder']);
-        Route::get('/order/{id}', [StoreRazorpayPaymentController::class, 'orderDetails']);
+        Route::post('/create-order', [StoreStripePaymentController::class, 'createOrder']);
+        Route::post('/verify-payment', [StoreStripePaymentController::class, 'verify']);
+        Route::post('/calculate-summary', [StoreStripePaymentController::class, 'calculateSummary']);
+        Route::post('/order/cancel/{id}', [StoreStripePaymentController::class, 'cancelOrder']);
+        Route::get('/order/{id}', [StoreStripePaymentController::class, 'orderDetails']);
     });
 
     Route::post('/wallet/topup/create-order', [StoreWalletTopupController::class, 'createTopupOrder']);
