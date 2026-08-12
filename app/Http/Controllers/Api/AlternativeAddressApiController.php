@@ -170,10 +170,10 @@ class AlternativeAddressApiController extends Controller
     public function getPincodeData(Request $request)
     {
         $request->validate([
-            'pincode' => 'required|digits:6'
+            'pincode' => 'required|digits:5'
         ]);
 
-        $data = DB::table('india_pincodes')
+        $data = DB::table('us_pincodes')
             ->where('pincode', $request->pincode)
             ->select(
                 'office_name',
@@ -181,7 +181,7 @@ class AlternativeAddressApiController extends Controller
                 'state',
                 'state_code',
                 'pincode',
-                DB::raw("'India' as country")
+                DB::raw("'USA' as country")
             )
             ->distinct()
             ->get();
@@ -190,13 +190,13 @@ class AlternativeAddressApiController extends Controller
 
             return response()->json([
                 'status' => false,
-                'message' => 'Pincode not found'
+                'message' => 'ZIP code not found'
             ]);
         }
 
         return response()->json([
             'status' => true,
-            'country' => 'India',
+            'country' => 'USA',
             'data' => $data
         ]);
     }

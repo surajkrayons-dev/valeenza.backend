@@ -101,7 +101,7 @@ class DeliveryRateController extends AdminController
 
     public function getCreate()
     {
-        $states = DB::table('india_pincodes')
+        $states = DB::table('us_pincodes')
             ->select('state')
             ->distinct()
             ->orderBy('state')
@@ -150,7 +150,7 @@ class DeliveryRateController extends AdminController
     {
         $delivery_rate = DeliveryRate::findOrFail($request->id);
 
-        $states = DB::table('india_pincodes')
+        $states = DB::table('us_pincodes')
             ->select('state')
             ->distinct()
             ->orderBy('state')
