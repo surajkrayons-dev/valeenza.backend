@@ -309,6 +309,8 @@ Route::namespace('App\Http\Controllers\Admin')
                         Route::post('update/{id?}', 'OrderController@postUpdate')->name('update');
                         Route::get('view/{id?}', 'OrderController@getView')->name('view');
                         Route::post('{id}/send-mail', 'OrderController@sendMail')->name('send-mail');
+                        Route::get('{id}/invoice/view', 'OrderController@viewPdf')->name('invoice.view');
+                        Route::get('{id}/invoice/download', 'OrderController@downloadPdf')->name('invoice.download');
                     });
 
                 Route::prefix('settings')

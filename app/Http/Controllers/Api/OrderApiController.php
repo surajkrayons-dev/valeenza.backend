@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Coupon;
 use App\Models\Product;
+use App\Services\OrderPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -473,6 +474,16 @@ class OrderApiController extends Controller
             'status' => true,
             'message' => 'PDF uploaded successfully',
             'pdf' => asset('storage/' . $filePath)
+        ]);
+    }
+
+    public function getInvoicePdf($id, OrderPdfService $pdfService)
+    {
+        $path = $pdfService->generateAndSave($id);
+
+        return response()->json([
+            'status' => true,
+            'pdf_url' => asset('storage/' . $path)
         ]);
     }
 }
