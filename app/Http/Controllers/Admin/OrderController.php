@@ -16,6 +16,7 @@ use DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use App\Services\OrderPdfService;
 use App\Mail\OrderDeliveryTrackMail;
 use Illuminate\Support\Facades\Mail;
 
@@ -134,6 +135,27 @@ class OrderController extends Controller
         }
 
         return view('admin.orders.view', compact('order'));
+    }
+
+    public function generatePdf($id, OrderPdfService $pdfService)
+    {
+        $path = $pdfService->generateAndSave($id);
+
+        return back()->with('success', 'PDF generated: ' . asset('storage/' . $path));
+    }
+
+    public function viewPdf($id, OrderPdfService $pdfService)
+    {
+        $path = $pdfService->generateAndSave($id);
+
+        return response()->file(storage_path('app/public/' . $path));
+    }
+
+    public function downloadPdf($id, OrderPdfService $pdfService)
+    {
+        $path = $pdfService->generateAndSave($id);
+
+        return response()->download(storage_path('app/public/' . $path), 'invoice_' . $id . '.pdf');
     }
 
     public function sendMail(Request $request, $id)
