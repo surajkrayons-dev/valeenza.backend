@@ -109,7 +109,7 @@ class StoreStripePaymentController extends Controller
 
             $afterDiscount = max(0, $subtotal - $discount);
 
-            $deliveryCharge = 0;
+            $deliveryCharge = 5.00;
 
             if ($request->address_id) {
 
@@ -341,7 +341,7 @@ class StoreStripePaymentController extends Controller
 
             $afterDiscount = max(0, $subtotal - $discount);
 
-            $deliveryCharge = 0;
+            $deliveryCharge = 5.00;
 
             if ($request->address_id) {
 
@@ -1023,7 +1023,7 @@ class StoreStripePaymentController extends Controller
             $subtotal = $validatedCart['subtotal'];
 
             // DELIVERY
-            $deliveryCharge = 0;
+            $deliveryCharge = 5.00;
 
             if ($request->address_id) {
 

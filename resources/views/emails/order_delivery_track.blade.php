@@ -20,11 +20,11 @@
                         <td
                             style="background:linear-gradient(135deg,#e65100,#fb8c00);padding:22px;text-align:center;color:#fff;">
 
-                            <img src="{{ config('app.url') }}/assets/images/favicon.png" alt="Astrotring" width="70"
+                            <img src="{{ config('app.url') }}/assets/images/favicon.png" alt="Valeenza" width="70"
                                 style="display:block;margin:0 auto 10px auto;">
 
                             <h2 style="margin:0;color:#fff;">
-                                Astrotring
+                                Valeenza
                             </h2>
 
                             <p style="margin:5px 0 0;font-size:13px;">
@@ -246,7 +246,7 @@
                     <tr>
                         <td style="background:#ffe0b2;text-align:center;padding:18px;font-size:12px;color:#555;">
 
-                            🙏 Thank you for trusting Astrotring 💫
+                            🙏 Thank you for trusting Valeenza 💫
 
                             <br>
 

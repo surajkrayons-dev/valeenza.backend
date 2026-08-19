@@ -36,7 +36,7 @@
 
         <p>Thank you for shopping with us ❤️</p>
 
-        <p>— Astrotring Team</p>
+        <p>— Valeenza Team</p>
 
     </div>
 
