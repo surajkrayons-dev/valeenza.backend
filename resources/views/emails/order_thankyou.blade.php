@@ -17,7 +17,7 @@
                     <tr>
                         <td
                             style="background:linear-gradient(135deg,#e65100,#fb8c00);padding:22px;text-align:center;color:#fff;">
-                            <h2 style="margin:0;">🛍️ Astrotring</h2>
+                            <h2 style="margin:0;">🛍️ Valeenza</h2>
                             <p style="margin:5px 0 0;font-size:13px;">✨ Spiritual & Gemstone Store ✨</p>
                         </td>
                     </tr>
@@ -28,7 +28,7 @@
                             <h2 style="margin:0;color:#e65100;">🎉 Order Confirmed</h2>
                             <p style="color:#555;font-size:14px;">
                                 Hi <b>{{ $order->user->name ?? 'User' }}</b>,<br>
-                                Thank you for buying from <b>Astrotring Store</b> 🙏<br>
+                                Thank you for buying from <b>Valeenza Store</b> 🙏<br>
                                 Your order has been successfully placed.
                             </p>
                             <p style="font-size:13px;color:#888;">Order ID: #{{ $order->order_number }}</p>
@@ -80,7 +80,7 @@
                     <!-- FOOTER -->
                     <tr>
                         <td style="background:#ffe0b2;text-align:center;padding:15px;font-size:12px;">
-                            🙏 Thank you for trusting Astrotring Shop 💫<br>
+                            🙏 Thank you for trusting Valeenza Shop 💫<br>
                             We wish you positivity & success 🌟
                         </td>
                     </tr>

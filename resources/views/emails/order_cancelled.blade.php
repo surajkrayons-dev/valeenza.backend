@@ -18,7 +18,7 @@
                         <td
                             style="background:linear-gradient(135deg,#c62828,#ef5350);padding:20px;text-align:center;color:#fff;">
                             <h2 style="margin:0;">❌ Order Cancelled</h2>
-                            <p style="margin:5px 0 0;font-size:13px;">Astrotring</p>
+                            <p style="margin:5px 0 0;font-size:13px;">Valeenza</p>
                         </td>
                     </tr>
 
@@ -105,7 +105,7 @@
                     <tr>
                         <td style="background:#ffe0b2;text-align:center;padding:15px;font-size:12px;">
 
-                            🙏 Thank you for choosing Astrotring<br>
+                            🙏 Thank you for choosing Valeenza<br>
 
                             <span style="color:#777;">
                                 For any help, contact our support team.

@@ -145,7 +145,7 @@
                     <tr>
                         <td style="background:#ffe0b2;text-align:center;padding:15px;font-size:12px;">
                             🚚 Your order will be shipped soon<br>
-                            🙏 Thank you for shopping with Astrotring Store
+                            🙏 Thank you for shopping with Valeenza Store
                         </td>
                     </tr>
 
