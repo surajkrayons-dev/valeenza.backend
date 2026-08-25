@@ -28,7 +28,7 @@
             @endforeach
         </ul>
 
-        <p><strong>Total:</strong> ₹{{ $order->total_amount }}</p>
+        <p><strong>Total:</strong> ${{ $order->total_amount }}</p>
 
         <p><strong>Delivered At:</strong> {{ $order->delivered_at }}</p>
 

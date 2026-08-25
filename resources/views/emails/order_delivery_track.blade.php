@@ -107,7 +107,7 @@
 
                                     <td align="right" style="color:#e65100;font-weight:bold;">
 
-                                        ₹{{ number_format($order->total_amount, 2) }}
+                                        ${{ number_format($order->total_amount, 2) }}
 
                                     </td>
                                 </tr>
@@ -181,7 +181,7 @@
 
                                         <td align="right" style="color:#e65100;font-weight:bold;padding-right:10px;">
 
-                                            ₹{{ number_format($item->total, 2) }}
+                                            ${{ number_format($item->total, 2) }}
 
                                         </td>
 
@@ -208,7 +208,7 @@
                                     <td align="right" style="color:#e65100;font-size:20px;">
 
                                         <b>
-                                            ₹{{ number_format($order->total_amount, 2) }}
+                                            ${{ number_format($order->total_amount, 2) }}
                                         </b>
 
                                     </td>

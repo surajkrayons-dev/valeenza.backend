@@ -4,118 +4,97 @@
 
 @section('content')
 
-<div class="row">
-    <div class="col-12">
+    <div class="row">
+        <div class="col-12">
 
-        <div class="page-title-box d-flex justify-content-between">
+            <div class="page-title-box d-flex justify-content-between">
 
-            <h4>Update Delivery Rate</h4>
+                <h4>Update Delivery Rate</h4>
 
-            <a href="{{ route('admin.delivery_rates.index') }}" class="btn btn-primary">
+                <a href="{{ route('admin.delivery_rates.index') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
 
-                <i class="fas fa-arrow-left"></i> Back
-
-            </a>
+            </div>
 
         </div>
-
     </div>
-</div>
 
-<form id="updateFrm">
-    @csrf
+    <form id="updateFrm">
+        @csrf
 
-    <div class="card">
+        <div class="card">
 
-        <div class="card-body">
+            <div class="card-body">
 
-            <div class="row">
+                <div class="row">
 
-                {{-- LEFT --}}
-                <div class="col-lg-8">
+                    {{-- LEFT --}}
+                    <div class="col-lg-8">
 
-                    <div class="card mb-3">
-                        <div class="card-body">
+                        <div class="card mb-3">
 
-                            <div class="row">
+                            <div class="card-body">
 
-                                <div class="col-md-6 mb-3">
+                                <div class="row">
 
-                                    <label class="form-label fw-bold">
-                                        State
-                                        <sup class="text-danger fs-5">*</sup>
-                                    </label>
+                                    <div class="col-md-12 mb-3">
 
-                                    <select name="state" class="form-control select2-class2"
-                                        data-placeholder="Choose State">
+                                        <label class="form-label fw-bold">
+                                            Delivery Charge
+                                            <sup class="text-danger fs-5">*</sup>
+                                        </label>
 
-                                        <option value=""></option>
+                                        <input type="number" name="delivery_charge" class="form-control" min="0"
+                                            step="0.01" value="{{ $delivery_rate->delivery_charge }}"
+                                            placeholder="Enter delivery charge" required>
 
-                                        @foreach($states as $state)
+                                        <small class="text-muted">
+                                            Enter 0 for free delivery.
+                                        </small>
 
-                                        <option value="{{ $state }}"
-                                            {{ $delivery_rate->state == $state ? 'selected' : '' }}>
-
-                                            {{ $state }}
-
-                                        </option>
-
-                                        @endforeach
-
-                                    </select>
-
-                                </div>
-
-                                <div class="col-md-6 mb-3">
-
-                                    <label class="form-label fw-bold">
-                                        Delivery Charge
-                                        <sup class="text-danger fs-5">*</sup>
-                                    </label>
-
-                                    <input type="number" name="delivery_charge" class="form-control" min="0" step="0.01"
-                                        value="{{ $delivery_rate->delivery_charge }}"
-                                        placeholder="Enter delivery charge">
+                                    </div>
 
                                 </div>
 
                             </div>
 
                         </div>
+
                     </div>
 
-                </div>
+                    {{-- RIGHT --}}
+                    <div class="col-lg-4">
 
-                {{-- RIGHT --}}
-                <div class="col-lg-4">
+                        <div class="card">
 
-                    <div class="card">
+                            <div class="card-header">
 
-                        <div class="card-header">
+                                <h4 class="card-title mb-0">
+                                    Delivery Rate Status
+                                </h4>
 
-                            <h4 class="card-title mb-0">
-                                Delivery Rate Status
-                            </h4>
+                            </div>
 
-                        </div>
+                            <div class="card-body">
 
-                        <div class="card-body">
+                                <div class="form-group d-flex justify-content-between align-items-center">
 
-                            <div class="form-group d-flex justify-content-between align-items-center">
-
-                                <label class="form-label fw-bold">
-                                    Status
-                                </label>
-
-                                <input type="hidden" name="status" value="0">
-
-                                <div class="square-switch">
-
-                                    <input type="checkbox" id="square-status" name="status" switch="status" value="1"
-                                        {{ $delivery_rate->status ? 'checked' : '' }}>
-
-                                    <label for="square-status" data-on-label="Yes" data-off-label="No">
+                                    <label class="form-label fw-bold">
+                                        Status
                                     </label>
+
+                                    <input type="hidden" name="status" value="0">
+
+                                    <div class="square-switch">
+
+                                        <input type="checkbox" id="square-status" name="status" switch="status"
+                                            value="1" {{ $delivery_rate->status ? 'checked' : '' }}>
+
+                                        <label for="square-status" data-on-label="Yes" data-off-label="No">
+                                        </label>
+
+                                    </div>
 
                                 </div>
 
@@ -129,80 +108,84 @@
 
             </div>
 
-        </div>
+            <div class="card-footer text-end">
 
-        <div class="card-footer text-end">
+                <button type="button" id="updateBtn" class="btn btn-success">
+                    Update
+                </button>
 
-            <button type="button" id="updateBtn" class="btn btn-success">
-
-                Update
-
-            </button>
+            </div>
 
         </div>
 
-    </div>
-
-</form>
+    </form>
 
 @endsection
 
 @section('script')
 
-<script>
-$(document).ready(function() {
+    <script>
+        $(document).ready(function() {
 
-    $('#updateBtn').click(function() {
+            $('#updateBtn').click(function(e) {
 
-        let btn = $(this);
+                e.preventDefault();
 
-        let formData = new FormData($('#updateFrm')[0]);
+                let btn = $(this);
+                let form = $('#updateFrm')[0];
 
-        $.ajax({
+                if (!form.checkValidity()) {
+                    form.reportValidity();
+                    return;
+                }
 
-            url: "{{ route('admin.delivery_rates.update', $delivery_rate->id) }}",
+                let formData = new FormData(form);
 
-            type: "POST",
+                $.ajax({
 
-            data: formData,
+                    url: "{{ route('admin.delivery_rates.update', $delivery_rate->id) }}",
 
-            processData: false,
+                    type: "POST",
 
-            contentType: false,
+                    data: formData,
 
-            beforeSend: () => {
+                    processData: false,
 
-                btn.prop('disabled', true);
+                    contentType: false,
 
-                showToastr('info', 'Updating...');
+                    beforeSend: function() {
 
-            },
+                        btn.prop('disabled', true);
 
-            success: res => {
+                        showToastr('info', 'Updating...');
 
-                showToastr('success', res.message);
+                    },
 
-                window.location.href =
-                    "{{ route('admin.delivery_rates.index') }}";
+                    success: function(res) {
 
-            },
+                        showToastr('success', res.message);
 
-            error: xhr => {
+                        window.location.href =
+                            "{{ route('admin.delivery_rates.index') }}";
 
-                btn.prop('disabled', false);
+                    },
 
-                showToastr(
-                    'error',
-                    formatErrorMessage(xhr)
-                );
+                    error: function(xhr) {
 
-            }
+                        btn.prop('disabled', false);
+
+                        showToastr(
+                            'error',
+                            formatErrorMessage(xhr)
+                        );
+
+                    }
+
+                });
+
+            });
 
         });
-
-    });
-
-});
-</script>
+    </script>
 
 @endsection

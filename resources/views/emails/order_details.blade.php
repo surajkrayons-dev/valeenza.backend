@@ -66,11 +66,11 @@
                                     <td style="font-size:13px;">
                                         <b>{{ $item->product_name }}</b><br>
                                         Qty: {{ $item->quantity }}<br>
-                                        Price: ₹{{ $item->price }}
+                                        Price: ${{ $item->price }}
                                     </td>
 
                                     <td align="right" style="color:#e65100;font-weight:bold;">
-                                        ₹{{ $item->total }}
+                                        ${{ $item->total }}
                                     </td>
 
                                 </tr>
@@ -88,24 +88,24 @@
                             <table width="100%" style="font-size:13px;">
                                 <tr>
                                     <td>Subtotal</td>
-                                    <td align="right">₹{{ $order->subtotal }}</td>
+                                    <td align="right">${{ $order->subtotal }}</td>
                                 </tr>
                                 <tr>
                                     <td>Discount</td>
-                                    <td align="right">- ₹{{ $order->discount }}</td>
+                                    <td align="right">- ${{ $order->discount }}</td>
                                 </tr>
                                 <tr>
                                     <td>Delivery Charge</td>
-                                    <td align="right">₹{{ $order->delivery_charge }}</td>
+                                    <td align="right">${{ $order->delivery_charge }}</td>
                                 </tr>
                                 <tr>
                                     <td>Wallet Used</td>
-                                    <td align="right">- ₹{{ $order->wallet_used }}</td>
+                                    <td align="right">- ${{ $order->wallet_used }}</td>
                                 </tr>
                                 <tr>
                                     <td><b>Total</b></td>
                                     <td align="right" style="color:#e65100;font-size:16px;">
-                                        <b>₹{{ $order->total_amount }}</b>
+                                        <b>${{ $order->total_amount }}</b>
                                     </td>
                                 </tr>
                             </table>

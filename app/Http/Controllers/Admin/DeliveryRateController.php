@@ -3,39 +3,26 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminController;
-use App\Models\DeliveryRate;
+use App\Models\StoreSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DeliveryRateController extends AdminController
 {
     public function getIndex(Request $request)
-    {
-        $states = DB::table('delivery_rates')
-            ->select('state')
-            ->whereNotNull('state')
-            ->distinct()
-            ->orderBy('state')
-            ->pluck('state');
-            
-        return view('admin.delivery_rates.index', compact('states'));
+    {       
+        return view('admin.delivery_rates.index');
     }
 
     public function getList(Request $request)
     {
-        $list = DeliveryRate::query()
+        $list = StoreSetting::query()
             ->select([
                 'id',
-                'state',
                 'delivery_charge',
                 'status',
                 'created_at'
             ])
-            ->when(
-                $request->state !== null &&
-                $request->state !== "",
-                fn($q) => $q->where('state', $request->state)
-            )
             ->when(
                 $request->status !== null &&
                 $request->status !== "",
@@ -101,19 +88,12 @@ class DeliveryRateController extends AdminController
 
     public function getCreate()
     {
-        $states = DB::table('us_pincodes')
-            ->select('state')
-            ->distinct()
-            ->orderBy('state')
-            ->pluck('state');
-            
-        return view('admin.delivery_rates.create', compact('states'));
+        return view('admin.delivery_rates.create');
     }
 
     public function postCreate(Request $request)
     {
         $request->validate([
-            'state' => 'required|string|max:255',
             'delivery_charge' => 'required|numeric|min:0',
             'status' => 'nullable|in:0,1'
         ]);
@@ -122,8 +102,7 @@ class DeliveryRateController extends AdminController
 
         try {
 
-            DeliveryRate::create([
-                'state' => $request->state,
+            StoreSetting::create([
                 'delivery_charge' => $request->delivery_charge,
                 'status' => (int) $request->status
             ]);
@@ -148,23 +127,16 @@ class DeliveryRateController extends AdminController
 
     public function getUpdate(Request $request)
     {
-        $delivery_rate = DeliveryRate::findOrFail($request->id);
+        $delivery_rate = StoreSetting::findOrFail($request->id);
 
-        $states = DB::table('us_pincodes')
-            ->select('state')
-            ->distinct()
-            ->orderBy('state')
-            ->pluck('state');
-
-        return view('admin.delivery_rates.update', compact('delivery_rate', 'states'));
+        return view('admin.delivery_rates.update', compact('delivery_rate'));
     }
 
     public function postUpdate(Request $request, $id)
     {
-        $delivery_rate = DeliveryRate::findOrFail($id);
+        $delivery_rate = StoreSetting::findOrFail($id);
 
         $request->validate([
-            'state' => 'required|string|max:255',
             'delivery_charge' => 'required|numeric|min:0',
             'status' => 'nullable|in:0,1'
         ]);
@@ -174,7 +146,6 @@ class DeliveryRateController extends AdminController
         try {
 
             $delivery_rate->update([
-                'state' => $request->state,
                 'delivery_charge' => $request->delivery_charge,
                 'status' => (int) $request->status
             ]);
@@ -199,7 +170,7 @@ class DeliveryRateController extends AdminController
 
     public function getDelete(Request $request)
     {
-        $delivery_rate = DeliveryRate::findOrFail($request->id);
+        $delivery_rate = StoreSetting::findOrFail($request->id);
 
         $delivery_rate->delete();
 
@@ -210,7 +181,7 @@ class DeliveryRateController extends AdminController
 
     public function getChangeStatus(Request $request)
     {
-        $delivery_rate = DeliveryRate::findOrFail($request->id);
+        $delivery_rate = StoreSetting::findOrFail($request->id);
 
         $delivery_rate->status = !$delivery_rate->status;
 

@@ -54,7 +54,7 @@
                                     </td>
 
                                     <td align="right" style="color:#e65100;font-weight:bold;">
-                                        ₹{{ $item->total }}
+                                        ${{ $item->total }}
                                     </td>
 
                                 </tr>
@@ -70,7 +70,7 @@
                                 <tr>
                                     <td>Total Paid</td>
                                     <td align="right" style="color:#e65100;font-size:18px;">
-                                        <b>₹{{ $order->total_amount }}</b>
+                                        <b>${{ $order->total_amount }}</b>
                                     </td>
                                 </tr>
                             </table>

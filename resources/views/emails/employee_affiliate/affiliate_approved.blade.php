@@ -21,7 +21,7 @@
                             style="background: linear-gradient(169deg, #e58146, #ffc107e0);padding: 24px;text-align: center;color: #fff;">
                             <h2 style="margin:0;">🎉 Affiliate Account Approved</h2>
                             <p style="margin:8px 0 0;font-size:13px;">
-                                Welcome to Astrotring Affiliate Program
+                                Welcome to Valeenza Affiliate Program
                             </p>
                         </td>
                     </tr>
@@ -39,7 +39,7 @@
                             </p>
 
                             <p style="color:#555;line-height:1.7;">
-                                Your affiliate account has been successfully approved by the Astrotring team.
+                                Your affiliate account has been successfully approved by the Valeenza team.
                             </p>
 
                             @if ($user->date_of_joining)
@@ -50,7 +50,7 @@
                             @endif
 
                             <p style="color:#555;line-height:1.7;">
-                                You can now login and start promoting Astrotring products and services.
+                                You can now login and start promoting Valeenza products and services.
                             </p>
 
                             <!-- LOGIN BUTTON -->
@@ -79,9 +79,9 @@
                     <!-- FOOTER -->
                     <tr>
                         <td style="background:#f3f4f6;padding:18px;text-align:center;font-size:12px;color:#666;">
-                            Thank you for joining Astrotring Shop🚀
+                            Thank you for joining Valeenza Shop🚀
                             <br>
-                            Astrotring Affiliate Team
+                            Valeenza Affiliate Team
                         </td>
                     </tr>
 
