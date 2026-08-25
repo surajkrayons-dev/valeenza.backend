@@ -11,14 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('delivery_rates', function (Blueprint $table) {
-
+        Schema::create('store_settings', function (Blueprint $table) {
             $table->id();
-
-            $table->string('state');
             $table->decimal('delivery_charge', 10, 2)->default(0);
             $table->tinyInteger('status')->default(1);
-
             $table->timestamps();
         });
     }
@@ -28,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('delivery_rates');
+        Schema::dropIfExists('store_settings');
     }
 };

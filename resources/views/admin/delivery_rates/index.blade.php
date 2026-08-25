@@ -4,238 +4,236 @@
 
 @section('content')
 
-{{-- PAGE HEADER --}}
-<div class="row">
-    <div class="col-12">
-        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-            <h4 class="mb-sm-0 font-size-18">Delivery Rates</h4>
+    {{-- PAGE HEADER --}}
+    <div class="row">
+        <div class="col-12">
+            <div class="page-title-box d-sm-flex align-items-center justify-content-between">
 
-            <div class="page-title-right">
-                <a href="{{ route('admin.delivery_rates.create.index') }}" class="btn btn-soft-info">
-                    <i class="fas fa-plus"></i> Create
-                </a>
+                <h4 class="mb-sm-0 font-size-18">
+                    Delivery Rates
+                </h4>
+
+                {{-- <div class="page-title-right">
+
+                    <a href="{{ route('admin.delivery_rates.create.index') }}" class="btn btn-soft-info">
+
+                        <i class="fas fa-plus"></i> Create
+
+                    </a>
+
+                </div> --}}
+
             </div>
         </div>
     </div>
-</div>
 
-{{-- FILTER --}}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="card-title mb-0">Filter</h4>
+    {{-- TABLE --}}
+    <div class="row">
 
-                <button id="reset-filter" class="btn btn-light">
-                    <i class="fa fa-undo"></i> Reset
-                </button>
-            </div>
+        <div class="col-12">
 
-            <div class="card-body">
-                <div class="row g-3">
+            <div class="card border">
 
-                    <div class="col">
+                <div class="card-body">
 
-                        <label class="form-label fw-bold">
-                            State
-                        </label>
+                    <table id="data-table" class="table table-bordered dt-responsive nowrap w-100">
 
-                        <select id="state" class="form-control select2-class2" data-placeholder="Choose State">
+                        <thead>
 
-                            <option value=""></option>
+                            <tr>
 
-                            @foreach($states as $state)
+                                <th>Delivery Charge</th>
 
-                            <option value="{{ $state }}">
-                                {{ $state }}
-                            </option>
+                                <th>Status</th>
 
-                            @endforeach
+                                <th class="text-center">
+                                    Action
+                                </th>
 
-                        </select>
+                            </tr>
 
-                    </div>
+                        </thead>
 
-                    <div class="col">
-                        <label class="form-label fw-bold">Status</label>
+                        <tbody></tbody>
 
-                        <select id="status" class="form-control select2-class2" data-placeholder="Choose Status">
-
-                            <option value=""></option>
-                            <option value="1">Active</option>
-                            <option value="0">Inactive</option>
-
-                        </select>
-                    </div>
+                    </table>
 
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- TABLE --}}
-<div class="row">
-    <div class="col-12">
-        <div class="card border">
-            <div class="card-body">
-
-                <table id="data-table" class="table table-bordered dt-responsive nowrap w-100">
-
-                    <thead>
-                        <tr>
-                            <th>State</th>
-                            <th>Delivery Charge</th>
-                            <th>Status</th>
-                            <th class="text-center">Action</th>
-                        </tr>
-                    </thead>
-
-                    <tbody></tbody>
-
-                </table>
 
             </div>
+
         </div>
+
     </div>
-</div>
 
 @endsection
 
 @section('script')
 
-<script>
-$(function() {
+    <script>
+        $(function() {
 
-    let table = $('#data-table').DataTable({
-        processing: true,
-        serverSide: true,
+            let table = $('#data-table').DataTable({
 
-        ajax: {
-            url: "{{ route('admin.delivery_rates.list') }}",
+                processing: true,
 
-            data: function(d) {
-                d.state = $('#state').val();
-                d.status = $('#status').val();
-            }
-        },
+                serverSide: true,
 
-        columns: [{
-                data: 'state',
-                name: 'state'
-            },
-            {
-                data: 'delivery_charge',
-                name: 'delivery_charge',
+                ajax: {
 
-                render: function(data) {
-                    return `₹ ${data}`;
-                }
-            },
+                    url: "{{ route('admin.delivery_rates.list') }}",
 
-            {
-                data: null,
-                name: 'status',
-                className: 'text-center',
+                    data: function(d) {
 
-                mRender: (data, type, row) => {
+                        d.status = $('#status').val();
 
-                    return `
-                            <div class="square-switch">
+                    }
 
-                                <input type="checkbox"
-                                       id="status-switch-${row.id}"
-                                       class="change-status"
-                                       switch="status"
-                                       data-id="${row.id}"
-                                       ${row.status == 1 ? 'checked' : ''} />
+                },
 
-                                <label for="status-switch-${row.id}"
-                                       data-on-label="Yes"
-                                       data-off-label="No">
-                                </label>
+                columns: [
 
-                            </div>
-                        `;
-                }
-            },
+                    {
+                        data: 'delivery_charge',
+                        name: 'delivery_charge',
 
-            {
-                data: null,
-                orderable: false,
-                searchable: false,
-                className: 'text-center',
+                        render: function(data) {
 
-                render: function(data, type, row) {
+                            return `$ ${parseFloat(data || 0).toFixed(2)}`;
 
-                    return `
-                            <a href="{{ route('admin.delivery_rates.update.index') }}/${row.id}"
-                               class="btn btn-soft-info">
+                        }
+                    },
 
-                                <i class="bx bx-pencil"></i>
+                    {
+                        data: null,
+                        name: 'status',
+                        className: 'text-center',
 
-                            </a>
+                        render: function(data, type, row) {
 
-                            <button class="btn btn-soft-danger delete-entry"
-                                    data-href="{{ route('admin.delivery_rates.delete') }}/${row.id}">
+                            return `
+                        <div class="square-switch">
 
-                                <i class="bx bx-trash"></i>
+                            <input
+                                type="checkbox"
+                                id="status-switch-${row.id}"
+                                class="change-status"
+                                switch="status"
+                                data-id="${row.id}"
+                                ${row.status == 1 ? 'checked' : ''}
+                            />
 
-                            </button>
-                        `;
-                }
-            }
-        ]
-    });
+                            <label
+                                for="status-switch-${row.id}"
+                                data-on-label="Yes"
+                                data-off-label="No">
+                            </label>
 
-    $(document).on('change', '.change-status', function() {
+                        </div>
+                    `;
 
-        let checkbox = $(this);
-        let id = checkbox.data('id');
+                        }
 
-        checkbox.prop('disabled', true);
+                    },
 
-        $.get(`{{ route('admin.delivery_rates.change.status') }}/${id}`)
+                    {
+                        data: null,
 
-            .done(function() {
+                        orderable: false,
 
-                table.ajax.reload(null, false);
+                        searchable: false,
 
-            })
+                        className: 'text-center',
 
-            .fail(function() {
+                        render: function(data, type, row) {
 
-                checkbox.prop(
-                    'checked',
-                    !checkbox.prop('checked')
-                );
+                            return `
+                        <a
+                            href="{{ route('admin.delivery_rates.update.index') }}/${row.id}"
+                            class="btn btn-soft-info">
 
-            })
+                            <i class="bx bx-pencil"></i>
 
-            .always(function() {
+                        </a>
 
-                checkbox.prop('disabled', false);
+                        <button
+                            type="button"
+                            class="btn btn-soft-danger delete-entry"
+                            data-href="{{ route('admin.delivery_rates.delete') }}/${row.id}">
+
+                            <i class="bx bx-trash"></i>
+
+                        </button>
+                    `;
+
+                        }
+
+                    }
+
+                ]
 
             });
-    });
 
-    $('#state, #status').on('change', function() {
 
-        table.ajax.reload();
+            // CHANGE STATUS
+            $(document).on('change', '.change-status', function() {
 
-    });
+                let checkbox = $(this);
 
-    $('#reset-filter').on('click', function() {
+                let id = checkbox.data('id');
 
-        $('#state').val('').trigger('change');
+                let oldStatus = !checkbox.prop('checked');
 
-        $('#status').val('').trigger('change');
+                checkbox.prop('disabled', true);
 
-        table.ajax.reload();
+                $.get(
+                        `{{ route('admin.delivery_rates.change.status') }}/${id}`
+                    )
 
-    });
+                    .done(function() {
 
-});
-</script>
+                        table.ajax.reload(null, false);
+
+                    })
+
+                    .fail(function() {
+
+                        checkbox.prop('checked', oldStatus);
+
+                        showToastr(
+                            'error',
+                            'Unable to update status'
+                        );
+
+                    })
+
+                    .always(function() {
+
+                        checkbox.prop('disabled', false);
+
+                    });
+
+            });
+
+
+            // STATUS FILTER
+            $('#status').on('change', function() {
+
+                table.ajax.reload();
+
+            });
+
+
+            // RESET FILTER
+            $('#reset-filter').on('click', function() {
+
+                $('#status')
+                    .val('')
+                    .trigger('change');
+
+            });
+
+        });
+    </script>
 
 @endsection

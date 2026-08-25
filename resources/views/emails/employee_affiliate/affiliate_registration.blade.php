@@ -21,7 +21,7 @@
                             style="background: linear-gradient(169deg, #e58146, #ffc107e0);padding: 24px;text-align: center;color: #fff;">
                             <h2 style="margin:0;">🤝 New Affiliate Registration</h2>
                             <p style="margin:8px 0 0;font-size:13px;">
-                                Astrotring Affiliate Program
+                                Valeenza Affiliate Program
                             </p>
                         </td>
                     </tr>
@@ -96,7 +96,7 @@
                     <!-- FOOTER -->
                     <tr>
                         <td style="background:#f3f4f6;padding:18px;text-align:center;font-size:12px;color:#666;">
-                            Astrotring Shop Admin Notification System
+                            Valeenza Shop Admin Notification System
                         </td>
                     </tr>
 

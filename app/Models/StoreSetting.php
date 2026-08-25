@@ -5,14 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class DeliveryRate extends Model
+class StoreSetting extends Model
 {
     use HasFactory;
 
-    protected $table = 'delivery_rates';
+    protected $table = 'store_settings';
     
     protected $fillable = [
-        'state',
         'delivery_charge',
         'status',
     ];

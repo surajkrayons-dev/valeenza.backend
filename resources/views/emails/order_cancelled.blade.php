@@ -48,22 +48,22 @@
 
                                 <tr>
                                     <td>Wallet Amount Used</td>
-                                    <td align="right"><b>₹{{ $order->wallet_used }}</b></td>
+                                    <td align="right"><b>${{ $order->wallet_used }}</b></td>
                                 </tr>
 
                                 <tr>
                                     <td>Online Payment</td>
-                                    <td align="right"><b>₹{{ $order->paid_amount }}</b></td>
+                                    <td align="right"><b>${{ $order->paid_amount }}</b></td>
                                 </tr>
 
                             </table>
 
                             <p style="margin-top:10px;color:#555;font-size:13px;line-height:1.6;">
-                                ✔ ₹{{ $order->wallet_used }} has been <b>instantly credited back to your
+                                ✔ ${{ $order->wallet_used }} has been <b>instantly credited back to your
                                     wallet</b>.<br><br>
 
-                                ⏳ ₹{{ $order->paid_amount }} will be <b>refunded to your original payment method</b>
-                                (via Razorpay).<br><br>
+                                ⏳ ${{ $order->paid_amount }} will be <b>refunded to your original payment method</b>
+                                (via Stripe).<br><br>
 
                                 🕒 This may take <b>24–48 hours</b> depending on your bank.
                             </p>

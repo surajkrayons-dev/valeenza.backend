@@ -21,7 +21,7 @@
                             style="background:linear-gradient(169deg,#e58146,#ffc107e0);padding:24px;text-align:center;color:#fff;">
                             <h2 style="margin:0;">🎁 New Affiliate Coupon Assigned</h2>
                             <p style="margin:8px 0 0;font-size:13px;">
-                                Astrotring Affiliate Program
+                                Valeenza Affiliate Program
                             </p>
                         </td>
                     </tr>
@@ -118,7 +118,7 @@
                             </table>
 
                             <p style="margin-top:25px;color:#555;line-height:1.7;">
-                                Please use this coupon while promoting Astrotring products and services.
+                                Please use this coupon while promoting Valeenza products and services.
                             </p>
 
                             <p style="color:#555;">
@@ -131,9 +131,9 @@
                     <!-- FOOTER -->
                     <tr>
                         <td style="background:#f3f4f6;padding:18px;text-align:center;font-size:12px;color:#666;">
-                            Thank you for being a valued Astrotring Affiliate ❤️
+                            Thank you for being a valued Valeenza Affiliate ❤️
                             <br>
-                            Astrotring Affiliate Team
+                            Valeenza Affiliate Team
                         </td>
                     </tr>
 

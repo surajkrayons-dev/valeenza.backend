@@ -15,7 +15,6 @@ use App\Models\EmployeeCommission;
 use App\Models\Payment;
 use App\Models\AlternativeAddress;
 use App\Models\Product;
-use App\Models\StoreSetting;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Order;
@@ -109,8 +108,8 @@ class StoreStripePaymentController extends Controller
 
             $afterDiscount = max(0, $subtotal - $discount);
 
-            // DELIVERY charge.
-            $deliveryCharge = $this->getDeliveryCharge();
+            // Shipping charge is always $5.00.
+            $deliveryCharge = 5.00;
 
             $wallet = StoreWallet::where('user_id', $user->id)
                 ->first();
@@ -321,8 +320,8 @@ class StoreStripePaymentController extends Controller
 
             $afterDiscount = max(0, $subtotal - $discount);
 
-            // DELIVERY charge.
-            $deliveryCharge = $this->getDeliveryCharge();
+            // Shipping charge is always $5.00.
+            $deliveryCharge = 5.00;
 
             $wallet = StoreWallet::where('user_id', $user->id)
                 ->lockForUpdate()
@@ -995,8 +994,8 @@ class StoreStripePaymentController extends Controller
 
             $subtotal = $validatedCart['subtotal'];
 
-            // DELIVERY:
-            $deliveryCharge = $this->getDeliveryCharge();
+            // DELIVERY: always $5.00.
+            $deliveryCharge = 5.00;
 
             return response()->json([
 
@@ -1257,10 +1256,5 @@ class StoreStripePaymentController extends Controller
             'subtotal' => $subtotal,
             'products' => $products
         ];
-    }
-
-    private function getDeliveryCharge()
-    {
-        return (float) (StoreSetting::orderBy('id', 'desc')->first()?->delivery_charge ?? 0);
     }
 }
