@@ -84,9 +84,9 @@ class CouponApiController extends Controller
     private function formatCouponText($c)
     {
         if ($c->discount_type === 'percentage') {
-            return $c->discount_value . '% OFF up to ₹' . $c->max_discount;
+            return $c->discount_value . '% OFF up to $' . $c->max_discount;
         }
 
-        return 'Flat ₹' . $c->discount_value . ' OFF';
+        return 'Flat $' . $c->discount_value . ' OFF';
     }
 }
