@@ -46,6 +46,9 @@ Route::post('/call/webhook', [EasyGoApiController::class, 'callWebhook']);
 
 Route::post('/store/payment/webhook', [StoreStripePaymentController::class, 'webhook']);
 
+// pincode
+Route::post('/get-pincode-data', [AlternativeAddressApiController::class, 'getPincodeData']);
+
 // USER AUTH
 Route::prefix('user')->group(function () {
     Route::post('register', [UserApiController::class, 'register']);
@@ -226,7 +229,6 @@ Route::middleware(['auth:sanctum', 'session.timeout'])->group(function () {
             |--------------------------------------------------------------------------
             */
             Route::get('addresses', [AlternativeAddressApiController::class, 'index']);
-            Route::post('/get-pincode-data', [AlternativeAddressApiController::class, 'getPincodeData']);
             Route::post('addresses', [AlternativeAddressApiController::class, 'store']);
             Route::get('addresses/{id}', [AlternativeAddressApiController::class, 'show']);
             Route::put('addresses/{id}', [AlternativeAddressApiController::class, 'update']);

@@ -8,6 +8,10 @@
     $subtotal = (float) ($order->subtotal ?? ($priceBreakdown['subtotal'] ?? 0));
 
     $deliveryCharge = (float) ($order->delivery_charge ?? ($priceBreakdown['delivery_charge'] ?? 0));
+
+    // US sales-tax rates stored in the order price breakdown.
+    $stateRate = (float) ($priceBreakdown['product_state_rate'] ?? 0);
+    $localRate = (float) ($priceBreakdown['product_local_rate'] ?? 0);
 @endphp
 
 <!DOCTYPE html>
@@ -317,8 +321,8 @@
                 <th>Unit Price</th>
                 <th>Qty</th>
                 <th>Net Amount</th>
-                <th>Tax Rate</th>
-                <th>Tax Amount</th>
+                <th>State Rate</th>
+                <th>Local Rate</th>
                 <th>Total Amount</th>
             </tr>
         </thead>
@@ -357,11 +361,11 @@
                     </td>
 
                     <td>
-                        {{ $item->gst_rate }}%
+                        {{ number_format($stateRate, 2) }}%
                     </td>
 
                     <td>
-                        ${{ number_format($item->gst_amount, 2) }}
+                        {{ number_format($localRate, 2) }}%
                     </td>
 
                     <td>

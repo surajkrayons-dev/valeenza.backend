@@ -405,7 +405,7 @@ Route::namespace('App\Http\Controllers\Admin')
 
                 /*  
                 |--------------------------------------------------------------------------
-                | Astro Store routes
+                | Store routes
                 |--------------------------------------------------------------------------
                 */
 
@@ -516,6 +516,19 @@ Route::namespace('App\Http\Controllers\Admin')
                             Route::post('update/{id?}', 'DeliveryRateController@postUpdate')->name('update');
                             Route::get('delete/{id?}', 'DeliveryRateController@getDelete')->name('delete');
                             Route::get('change/status/{id?}', 'DeliveryRateController@getChangeStatus')->name('change.status');
+                        });
+
+                    Route::prefix('product_taxes')
+                        ->name('product_taxes.')
+                        ->group(function () {
+                            Route::get('/', 'ProductTaxController@getIndex')->name('index');
+                            Route::get('list', 'ProductTaxController@getList')->name('list');
+                            Route::get('create', 'ProductTaxController@getCreate')->name('create.index');
+                            Route::post('create', 'ProductTaxController@postCreate')->name('create');
+                            Route::get('update/{id?}', 'ProductTaxController@getUpdate')->name('update.index');
+                            Route::post('update/{id?}', 'ProductTaxController@postUpdate')->name('update');
+                            Route::get('delete/{id?}', 'ProductTaxController@getDelete')->name('delete');
+                            Route::get('change/status/{id?}', 'ProductTaxController@getChangeStatus')->name('change.status');
                         });
 
                 Route::prefix('send_mail')
