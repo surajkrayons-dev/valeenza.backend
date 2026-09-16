@@ -375,6 +375,32 @@
                 </tr>
             @endforeach
 
+            {{-- SUBTOTAL --}}
+
+            @if ($subtotal > 0)
+
+                <tr>
+
+                    <td></td>
+
+                    <td class="desc">
+                        Subtotal
+                    </td>
+
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+
+                    <td>
+                        ${{ number_format($subtotal, 2) }}
+                    </td>
+
+                </tr>
+
+            @endif
+
             {{-- DELIVERY CHARGE --}}
 
             @if ($deliveryCharge > 0)
@@ -412,34 +438,6 @@
 
                 </tr>
             @endif
-
-            {{-- SUBTOTAL --}}
-
-            {{-- 
-            @if ($subtotal > 0)
-
-                <tr>
-
-                    <td></td>
-
-                    <td class="desc">
-                        Subtotal
-                    </td>
-
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-
-                    <td>
-                        ${{ number_format($subtotal, 2) }}
-                    </td>
-
-                </tr>
-
-            @endif
-            --}}
 
             {{-- COUPON DISCOUNT --}}
 
@@ -585,9 +583,9 @@
 
     {{-- FOOTER NOTES --}}
 
-    <div class="footer-note">
+    {{-- <div class="footer-note">
         Whether tax is payable under reverse charge - NO
-    </div>
+    </div> --}}
 
     <div class="footer-note">
         Mode of Payment:
