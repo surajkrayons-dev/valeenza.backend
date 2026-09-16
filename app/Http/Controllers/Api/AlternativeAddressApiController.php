@@ -177,7 +177,7 @@ class AlternativeAddressApiController extends Controller
             ->where('pincode', $request->pincode)
             ->select(
                 'office_name',
-                'district as city',
+                'division_name as city',
                 'state',
                 'state_code',
                 'pincode',

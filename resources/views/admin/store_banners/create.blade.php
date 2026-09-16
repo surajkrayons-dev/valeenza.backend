@@ -41,7 +41,7 @@
                                                 class="form-control" accept="image/*" required>
 
                                             <small class="text-muted">
-                                                Recommended: 1920 × 600 (JPG, PNG, WEBP)
+                                                Recommended: 2083 × 755 px (JPG, PNG, WEBP)
                                             </small>
                                         </div>
 
@@ -60,7 +60,7 @@
                                                 class="form-control" accept="image/*" required>
 
                                             <small class="text-muted">
-                                                Recommended: 1080 × 1350 (JPG, PNG, WEBP)
+                                                Recommended: 1080 × 1080 px (JPG, PNG, WEBP)
                                             </small>
                                         </div>
 

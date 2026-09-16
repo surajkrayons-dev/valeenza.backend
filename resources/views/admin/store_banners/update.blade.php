@@ -42,7 +42,7 @@
                                                 class="form-control" accept="image/*">
 
                                             <small class="text-muted">
-                                                Leave empty to keep existing desktop banner.
+                                                Recommended: 2083 × 755 px (JPG, PNG, WEBP)
                                             </small>
                                         </div>
 
@@ -73,7 +73,7 @@
                                                 class="form-control" accept="image/*">
 
                                             <small class="text-muted">
-                                                Leave empty to keep existing mobile banner.
+                                                Recommended: 1080 × 1080 px (JPG, PNG, WEBP)
                                             </small>
                                         </div>
 
