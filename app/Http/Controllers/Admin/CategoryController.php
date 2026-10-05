@@ -29,7 +29,7 @@ class CategoryController extends AdminController
             ->addColumn('image', function ($row) {
 
                 if ($row->cat_image) {
-                    return '<img src="'.asset('storage/categories/'.$row->cat_image).'"
+                    return '<img src="'.asset('storage/'.$row->cat_image).'"
                                 width="50"
                                 height="50"
                                 class="rounded border"
@@ -67,7 +67,12 @@ class CategoryController extends AdminController
             $image = null;
 
             if ($request->hasFile('cat_image')) {
-                $image = uploadFile('cat_image', null, null, 'categories');
+
+                $uploadedImage = uploadFile('cat_image', null, null, 'categories');
+
+                if ($uploadedImage) {
+                    $image = 'categories/' . $uploadedImage;
+                }
             }
 
             Category::create([
@@ -114,13 +119,18 @@ class CategoryController extends AdminController
         $image = $category->cat_image;
 
         if ($request->hasFile('cat_image')) {
-            $image = uploadFile(
-                'cat_image',
-                null,
-                null,
-                'categories',
-                $category->cat_image
-            );
+
+            $oldImage = $category->cat_image;
+
+            if ($oldImage && str_starts_with($oldImage, 'categories/')) {
+                $oldImage = substr($oldImage, strlen('categories/'));
+            }
+
+            $uploadedImage = uploadFile('cat_image', null, null, 'categories', $oldImage);
+
+            if ($uploadedImage) {
+                $image = 'categories/' . $uploadedImage;
+            }
         }
 
         $category->update([
@@ -128,7 +138,7 @@ class CategoryController extends AdminController
             'name'      => $request->name,
             'slug'      => Str::slug($request->slug),
             'cat_image' => $image,
-            'status'    => $request->status ?? 1,
+            'status'    => (int) ($request->status ?? 0),
         ]);
 
         return response()->json([
