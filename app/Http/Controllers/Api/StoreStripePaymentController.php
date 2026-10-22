@@ -116,31 +116,10 @@ class StoreStripePaymentController extends Controller
                     ], 422);
                 }
 
-                if ($coupon->discount_type === 'flat') {
-                    $discount = (float) $coupon->discount_value;
-                } else {
-                    $discount = (
-                        $subtotal *
-                        (float) $coupon->discount_value
-                    ) / 100;
-
-                    if ($coupon->max_discount) {
-                        $discount = min(
-                            $discount,
-                            (float) $coupon->max_discount
-                        );
-                    }
-                }
-
-                $discount = min($discount, $subtotal);
-
+                // Coupon validation is done here. The actual discount is
+                // calculated after the tax-exclusive product base is known.
                 $couponId = $coupon->id;
             }
-
-            $afterDiscount = round(
-                max(0, $subtotal - $discount),
-                2
-            );
 
             /*
              * ========================================================
@@ -179,16 +158,34 @@ class StoreStripePaymentController extends Controller
              */
             $productTaxSetting = $this->getProductTaxForAddress($address);
 
-            $taxCalculation = $this->calculateProductTax(
+            // First derive the original tax-exclusive base from tax-inclusive prices.
+            $baseTaxCalculation = $this->calculateProductTax(
                 $items,
                 $productTaxSetting
             );
 
+            // Coupon discounts are applied to the taxable/net amount, not to
+            // the tax-inclusive unit price.
+            $discount = $this->calculateCouponDiscount(
+                $coupon,
+                $baseTaxCalculation['taxable_amount']
+            );
+
+            $taxCalculation = $this->calculateDiscountedProductTax(
+                $items,
+                $productTaxSetting,
+                $discount,
+                $baseTaxCalculation
+            );
+
+            $afterDiscount = $taxCalculation['product_total'];
             $productStateRate = $taxCalculation['state_rate'];
             $productLocalRate = $taxCalculation['local_rate'];
             $productCombinedRate = $taxCalculation['combined_rate'];
             $productTax = $taxCalculation['tax'];
             $productTaxableAmount = $taxCalculation['taxable_amount'];
+            $productStateTaxAmount = $taxCalculation['state_tax_amount'];
+            $productLocalTaxAmount = $taxCalculation['local_tax_amount'];
 
             /*
              * ========================================================
@@ -286,6 +283,7 @@ class StoreStripePaymentController extends Controller
                     'breakdown' => [
                         'subtotal' => $subtotal,
                         'discount' => $discount,
+                        'coupon_discount_basis' => 'taxable_amount',
                         'after_discount' => $afterDiscount,
 
                         'product_tax_state' =>
@@ -308,6 +306,12 @@ class StoreStripePaymentController extends Controller
 
                         'product_tax_amount' =>
                             $productTax,
+
+                        'product_state_tax_amount' =>
+                            $productStateTaxAmount,
+
+                        'product_local_tax_amount' =>
+                            $productLocalTaxAmount,
 
                         'delivery_charge' =>
                             $deliveryCharge,
@@ -452,6 +456,12 @@ class StoreStripePaymentController extends Controller
                     'discount' =>
                         $discount,
 
+                    'coupon_discount_basis' =>
+                        'taxable_amount',
+
+                    'original_taxable_amount' =>
+                        round((float) $baseTaxCalculation['taxable_amount'], 2),
+
                     'after_discount' =>
                         $afterDiscount,
 
@@ -477,10 +487,10 @@ class StoreStripePaymentController extends Controller
                         $productTax,
 
                     'product_state_tax_amount' =>
-                        round($productTaxableAmount * $productStateRate / 100, 2),
+                        $productStateTaxAmount,
 
                     'product_local_tax_amount' =>
-                        round($productTax - ($productTaxableAmount * $productStateRate / 100), 2),
+                        $productLocalTaxAmount,
 
                     'delivery_charge' =>
                         $deliveryCharge,
@@ -618,8 +628,10 @@ class StoreStripePaymentController extends Controller
                     );
                 }
 
-                $subtotal +=
-                    (float) $item->total_price;
+                $subtotal += round(
+                    (float) $item->total_price,
+                    2
+                );
             }
 
             $subtotal = round($subtotal, 2);
@@ -663,43 +675,10 @@ class StoreStripePaymentController extends Controller
                     );
                 }
 
-                if (
-                    $coupon->discount_type === 'flat'
-                ) {
-                    $discount =
-                        (float) $coupon->discount_value;
-                } else {
-                    $discount =
-                        (
-                            $subtotal *
-                            (float) $coupon->discount_value
-                        ) / 100;
-
-                    if ($coupon->max_discount) {
-                        $discount = min(
-                            $discount,
-                            (float) $coupon->max_discount
-                        );
-                    }
-                }
-
-                $discount = min(
-                    $discount,
-                    $subtotal
-                );
-
+                // Discount amount is calculated after retrieving the
+                // destination tax rates and deriving the taxable base.
                 $couponId = $coupon->id;
             }
-
-            $discount = round($discount, 2);
-
-            $afterDiscount = round(
-                max(
-                    0,
-                    $subtotal - $discount
-                ),
-                2
-            );
 
             /*
              * ========================================================
@@ -740,29 +719,32 @@ class StoreStripePaymentController extends Controller
                     $address
                 );
 
-            $taxCalculation =
-                $this->calculateProductTax(
-                    $items,
-                    $productTaxSetting
-                );
+            $baseTaxCalculation = $this->calculateProductTax(
+                $items,
+                $productTaxSetting
+            );
 
-            $productStateRate =
-                $taxCalculation['state_rate'];
+            $discount = $this->calculateCouponDiscount(
+                $coupon,
+                $baseTaxCalculation['taxable_amount']
+            );
 
-            $productLocalRate =
-                $taxCalculation['local_rate'];
+            $taxCalculation = $this->calculateDiscountedProductTax(
+                $items,
+                $productTaxSetting,
+                $discount,
+                $baseTaxCalculation
+            );
 
-            $productCombinedRate =
-                $taxCalculation['combined_rate'];
-
-            $productTax =
-                $taxCalculation['tax'];
-
-            $productTaxableAmount =
-                $taxCalculation['taxable_amount'];
-
-            $itemTaxDetails =
-                $taxCalculation['items'];
+            $afterDiscount = $taxCalculation['product_total'];
+            $productStateRate = $taxCalculation['state_rate'];
+            $productLocalRate = $taxCalculation['local_rate'];
+            $productCombinedRate = $taxCalculation['combined_rate'];
+            $productTax = $taxCalculation['tax'];
+            $productTaxableAmount = $taxCalculation['taxable_amount'];
+            $productStateTaxAmount = $taxCalculation['state_tax_amount'];
+            $productLocalTaxAmount = $taxCalculation['local_tax_amount'];
+            $itemTaxDetails = $taxCalculation['items'];
 
             /*
              * ========================================================
@@ -1487,12 +1469,20 @@ class StoreStripePaymentController extends Controller
                     'coupon_discount' =>
                         $discount,
 
+                    'coupon_discount_basis' =>
+                        'taxable_amount',
+
+                    'original_taxable_amount' =>
+                        round((float) $baseTaxCalculation['taxable_amount'], 2),
+
                     'after_discount' =>
                         $afterDiscount,
 
                     /*
                      * PRODUCT TAX INFORMATION
                      */
+                    'product_unit_prices_tax_included' => true,
+
                     'product_tax_state' =>
                         $productTaxSetting->state_name
                             ?? null,
@@ -1517,10 +1507,10 @@ class StoreStripePaymentController extends Controller
                         $productTax,
 
                     'product_state_tax_amount' =>
-                        round($productTaxableAmount * $productStateRate / 100, 2),
+                        $productStateTaxAmount,
 
                     'product_local_tax_amount' =>
-                        round($productTax - ($productTaxableAmount * $productStateRate / 100), 2),
+                        $productLocalTaxAmount,
 
                     /*
                      * DELIVERY
@@ -1803,10 +1793,10 @@ class StoreStripePaymentController extends Controller
                         $item->quantity,
 
                     'price' =>
-                        $item->price_at_time,
+                        round((float) $item->price_at_time, 2),
 
                     'total' =>
-                        $item->total_price,
+                        round((float) $item->total_price, 2),
 
                     'weight' =>
                         $product->weight,
@@ -2254,26 +2244,33 @@ class StoreStripePaymentController extends Controller
      */
     public function calculateSummary(Request $request)
     {
+        $request->validate([
+            'address_id'   => 'nullable|integer|exists:alternative_addresses,id',
+            'coupon_code'  => 'nullable|string|max:100',
+            'wallet_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthenticated',
+            ], 401);
+        }
+
         try {
-            $user = $request->user();
+            // 1. Get customer's cart
+            $cart = Cart::where('user_id', $user->id)->first();
 
-            $request->validate([
-                'address_id' =>
-                    'nullable|exists:alternative_addresses,id',
-            ]);
+            if (!$cart) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Cart not found',
+                ], 422);
+            }
 
-            /*
-             * CART
-             */
-            $cart = Cart::where(
-                'user_id',
-                $user->id
-            )->firstOrFail();
-
-            $items = CartItem::where(
-                'cart_id',
-                $cart->id
-            )->get();
+            $items = CartItem::where('cart_id', $cart->id)->get();
 
             if ($items->isEmpty()) {
                 return response()->json([
@@ -2282,154 +2279,221 @@ class StoreStripePaymentController extends Controller
                 ], 422);
             }
 
-            $validatedCart =
-                $this->validateCartItems(
-                    $items
-                );
+            // 2. Validate products, quantities, prices and stock
+            $validatedCart = $this->validateCartItems($items);
 
-            $subtotal =
-                round(
-                    $validatedCart['subtotal'],
-                    2
-                );
+            $subtotal = round(
+                (float) $validatedCart['subtotal'],
+                2
+            );
 
-            /*
-             * DELIVERY
-             */
-            $deliveryCharge =
-                round(
-                    $this->getDeliveryCharge(),
-                    2
-                );
+            // 3. Calculate coupon discount
+            $discount = 0;
+            $coupon = null;
 
-            /*
-             * ADDRESS
-             */
-            $address =
-                $this->getUserAddress(
-                    $request->address_id,
-                    $user->id
-                );
+            if ($request->filled('coupon_code')) {
+                $coupon = Coupon::where(
+                    'code',
+                    $request->coupon_code
+                )
+                    ->where('status', 1)
+                    ->whereDate('expiry_date', '>=', now())
+                    ->first();
 
-            if (
-                $request->address_id &&
-                !$address
-            ) {
+                if (!$coupon) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Invalid coupon',
+                    ], 422);
+                }
+
+                if (
+                    $coupon->min_amount &&
+                    $subtotal < (float) $coupon->min_amount
+                ) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Coupon minimum amount not met',
+                    ], 422);
+                }
+
+                // The discount amount is calculated below from the
+                // tax-exclusive product subtotal.
+            }
+
+            // 4. Delivery charge
+            $deliveryCharge = round(
+                $this->getDeliveryCharge(),
+                2
+            );
+
+            // 5. Get customer's selected address
+            $address = $this->getUserAddress(
+                $request->address_id,
+                $user->id
+            );
+
+            if ($request->address_id && !$address) {
                 return response()->json([
                     'status' => false,
-                    'message' =>
-                        'Invalid delivery address',
+                    'message' => 'Invalid delivery address',
                 ], 422);
             }
 
-            /*
-             * PRODUCT TAX
-             */
-            $productTaxSetting =
-                $this->getProductTaxForAddress(
-                    $address
-                );
+            // 6. Get tax rates for the selected state
+            $productTaxSetting = $this->getProductTaxForAddress(
+                $address
+            );
 
-            $taxCalculation =
-                $this->calculateProductTax(
-                    $items,
-                    $productTaxSetting
-                );
+            // Calculate the original tax-exclusive base first, then apply
+            // the coupon to that base and calculate tax on the discounted base.
+            $baseTaxCalculation = $this->calculateProductTax(
+                $items,
+                $productTaxSetting
+            );
 
-            $productTax =
-                $taxCalculation['tax'];
+            $discount = $this->calculateCouponDiscount(
+                $coupon,
+                $baseTaxCalculation['taxable_amount']
+            );
 
-            $productStateRate =
-                $taxCalculation['state_rate'];
+            $taxCalculation = $this->calculateDiscountedProductTax(
+                $items,
+                $productTaxSetting,
+                $discount,
+                $baseTaxCalculation
+            );
 
-            $productLocalRate =
-                $taxCalculation['local_rate'];
+            $afterDiscount = $taxCalculation['product_total'];
+            $productStateRate = $taxCalculation['state_rate'];
+            $productLocalRate = $taxCalculation['local_rate'];
+            $productCombinedRate = $taxCalculation['combined_rate'];
+            $productTax = $taxCalculation['tax'];
+            $productTaxableAmount = $taxCalculation['taxable_amount'];
+            $productStateTaxAmount = $taxCalculation['state_tax_amount'];
+            $productLocalTaxAmount = $taxCalculation['local_tax_amount'];
 
-            $productCombinedRate =
-                $taxCalculation['combined_rate'];
-
-            $productTaxableAmount =
-                $taxCalculation['taxable_amount'];
-
-            /*
-             * NO DELIVERY TAX
-             */
+            // 7. Product tax is included in the product price.
+            // Delivery tax is disabled by the existing business rule.
             $shippingTaxRate = 0;
-            $shippingTax = 0;
+            $shippingTaxAmount = 0;
 
-            /*
-             * IMPORTANT:
-             * Product tax is already inside product price.
-             */
-            $finalAmount =
-                round(
-                    $subtotal +
-                    $deliveryCharge,
-                    2
-                );
+            $orderTotal = round(
+                $afterDiscount + $deliveryCharge,
+                2
+            );
 
+            // 8. Calculate wallet usage without deducting money.
+            $walletInput = round(
+                (float) ($request->wallet_amount ?? 0),
+                2
+            );
+
+            $wallet = StoreWallet::where(
+                'user_id',
+                $user->id
+            )->first();
+
+            $walletBalance = round(
+                (float) ($wallet->balance ?? 0),
+                2
+            );
+
+            if ($walletInput > $walletBalance) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Insufficient wallet balance',
+                ], 422);
+            }
+
+            $walletUsed = round(
+                min($walletInput, $orderTotal),
+                2
+            );
+
+            $payableAmount = round(
+                max(0, $orderTotal - $walletUsed),
+                2
+            );
+
+            // 9. Return a compact summary with names aligned to invoice fields.
+            // This is only a preview: it does not create an order or deduct wallet funds.
             return response()->json([
                 'status' => true,
+                'message' => 'Checkout summary calculated successfully',
+                'data' => [
+                    'currency' => 'USD',
 
-                'breakdown' => [
-                    'subtotal' =>
-                        $subtotal,
+                    'products' => [
+                        // Original product total includes embedded State/Local tax.
+                        'total_before_discount_including_tax' => round($subtotal, 2),
 
-                    'product_tax_state' =>
-                        $productTaxSetting->state_name
-                            ?? null,
+                        // Tax-exclusive net amount before applying the coupon.
+                        'net_amount_before_discount' => round(
+                            (float) $baseTaxCalculation['taxable_amount'],
+                            2
+                        ),
 
-                    'product_tax_state_code' =>
-                        $productTaxSetting->state_code
-                            ?? null,
+                        'coupon' => [
+                            'code' => $coupon?->code,
+                            'discount_amount' => round($discount, 2),
+                            'applied_to' => 'net_amount_before_discount',
+                        ],
 
-                    'product_state_rate' =>
-                        $productStateRate,
+                        // Tax-exclusive amount after the coupon is deducted.
+                        'net_amount_after_discount' => round(
+                            (float) $productTaxableAmount,
+                            2
+                        ),
 
-                    'product_local_rate' =>
-                        $productLocalRate,
+                        // Discounted product total, tax included.
+                        'total_after_discount_including_tax' => round($afterDiscount, 2),
+                    ],
 
-                    'product_combined_rate' =>
-                        $productCombinedRate,
+                    'tax' => [
+                        'included_in_product_price' => true,
+                        'jurisdiction' => [
+                            'state' => $productTaxSetting->state_name ?? null,
+                            'state_code' => $productTaxSetting->state_code ?? null,
+                        ],
+                        'state' => [
+                            'rate_percent' => round((float) $productStateRate, 2),
+                            'amount' => round((float) $productStateTaxAmount, 2),
+                        ],
+                        'local' => [
+                            'rate_percent' => round((float) $productLocalRate, 2),
+                            'amount' => round((float) $productLocalTaxAmount, 2),
+                        ],
+                        'total_amount' => round((float) $productTax, 2),
+                    ],
 
-                    'product_taxable_amount' =>
-                        $productTaxableAmount,
+                    'delivery' => [
+                        'charge' => round($deliveryCharge, 2),
+                        'tax_amount' => round((float) $shippingTaxAmount, 2),
+                    ],
 
-                    'product_tax_amount' =>
-                        $productTax,
+                    'wallet' => [
+                        'available_balance' => round($walletBalance, 2),
+                        'amount_applied' => round($walletUsed, 2),
+                    ],
 
-                    'product_state_tax_amount' =>
-                        round($productTaxableAmount * $productStateRate / 100, 2),
-
-                    'product_local_tax_amount' =>
-                        round($productTax - ($productTaxableAmount * $productStateRate / 100), 2),
-
-                    'delivery_charge' =>
-                        $deliveryCharge,
-
-                    'shipping_tax_rate' =>
-                        0,
-
-                    'shipping_tax_amount' =>
-                        0,
-
-                    'final_amount' =>
-                        $finalAmount,
+                    'totals' => [
+                        'amount_before_wallet' => round($orderTotal, 2),
+                        'payable_amount' => round($payableAmount, 2),
+                    ],
                 ],
             ]);
+
         } catch (\Throwable $e) {
-            Log::error(
-                'STORE SUMMARY ERROR',
-                [
-                    'message' =>
-                        $e->getMessage(),
-                ]
-            );
+            Log::error('STORE SUMMARY ERROR', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
 
             return response()->json([
                 'status' => false,
-                'message' =>
-                    'Unable to calculate order summary. Please try again.',
+                'message' => 'Unable to calculate order summary. Please try again.',
             ], 422);
         }
     }
@@ -2509,14 +2573,25 @@ class StoreStripePaymentController extends Controller
             }
 
             /*
-             * Current business rule:
-             * refund only product subtotal.
+             * Refund the discounted product total (including embedded tax),
+             * but do not refund delivery. This keeps cancellation consistent
+             * with the coupon being applied to the tax-exclusive taxable base.
              */
-            $refundAmount =
-                round(
-                    (float) $order->subtotal,
-                    2
-                );
+            $cancellationPricing = $order->price_breakdown ?? [];
+
+            if (is_string($cancellationPricing)) {
+                $cancellationPricing = json_decode($cancellationPricing, true) ?: [];
+            } elseif (is_object($cancellationPricing)) {
+                $cancellationPricing = (array) $cancellationPricing;
+            }
+
+            $refundAmount = round(
+                (float) (
+                    $cancellationPricing['after_discount']
+                    ?? max(0, (float) $order->subtotal - (float) $order->discount)
+                ),
+                2
+            );
 
             /*
              * WALLET
@@ -2880,8 +2955,10 @@ class StoreStripePaymentController extends Controller
                 );
             }
 
-            $subtotal +=
-                (float) $item->total_price;
+            $subtotal += round(
+                (float) $item->total_price,
+                2
+            );
         }
 
         return [
@@ -3051,104 +3128,58 @@ class StoreStripePaymentController extends Controller
      *
      * combined_rate is NOT another tax.
      */
-    private function calculateProductTax(
-        $items,
-        $productTaxSetting
-    ) {
-        $stateRate =
-            $productTaxSetting
-                ? (float) $productTaxSetting->state_rate
-                : 0.0;
+    private function calculateProductTax($items, $productTaxSetting): array
+    {
+        $stateRate = round((float) ($productTaxSetting->state_rate ?? 0), 2);
+        $localRate = round((float) ($productTaxSetting->local_rate ?? 0), 2);
+        $combinedRate = round($stateRate + $localRate, 2);
 
-        $localRate =
-            $productTaxSetting
-                ? (float) $productTaxSetting->local_rate
-                : 0.0;
-
-        /*
-         * combined_rate is state + local only.
-         * It is NOT charged as a third tax.
-         */
-        $combinedRate = round(
-            $stateRate + $localRate,
-            2
-        );
-
-        $tax = 0.0;
         $taxableAmount = 0.0;
+        $tax = 0.0;
+        $stateTaxAmount = 0.0;
+        $localTaxAmount = 0.0;
         $itemDetails = [];
 
         foreach ($items as $item) {
-            /*
-             * Product price is tax-inclusive.
-             * Example: product price = $50 and combined tax = 1.82%.
-             * The pre-tax amount must therefore be derived from $50.
-             */
-            $itemTotal = round(
-                (float) $item->total_price,
-                2
-            );
+            $grossAmount = round((float) ($item->total_price ?? 0), 2);
+            $lineTaxableAmount = $combinedRate > 0
+                ? round($grossAmount / (1 + ($combinedRate / 100)), 2)
+                : $grossAmount;
 
-            $itemTaxableAmount = $combinedRate > 0
-                ? round(
-                    $itemTotal / (1 + ($combinedRate / 100)),
-                    2
-                )
-                : $itemTotal;
+            $lineStateTax = round($lineTaxableAmount * $stateRate / 100, 2);
+            $lineLocalTax = round($lineTaxableAmount * $localRate / 100, 2);
+            $lineTax = round($lineStateTax + $lineLocalTax, 2);
 
-            /*
-             * Both state and local tax are calculated from the SAME
-             * pre-tax product amount. No tax is calculated on delivery.
-             */
-            $stateTax = round(
-                ($itemTaxableAmount * $stateRate) / 100,
-                2
-            );
-
-            $localTax = round(
-                ($itemTaxableAmount * $localRate) / 100,
-                2
-            );
-
-            $itemTax = round(
-                $stateTax + $localTax,
-                2
-            );
-
-            /*
-             * Keep the embedded-tax product total equal to the original
-             * product price. Any 1-cent rounding difference is reconciled
-             * against local tax so the displayed product total never changes.
-             */
+            // Reconcile embedded-tax rounding to the original line price.
             $roundingDifference = round(
-                $itemTotal - ($itemTaxableAmount + $itemTax),
+                $grossAmount - ($lineTaxableAmount + $lineTax),
                 2
             );
 
             if (abs($roundingDifference) >= 0.01) {
-                $localTax = round(
-                    $localTax + $roundingDifference,
-                    2
-                );
-
-                $itemTax = round(
-                    $stateTax + $localTax,
-                    2
-                );
+                $lineLocalTax = round($lineLocalTax + $roundingDifference, 2);
+                $lineTax = round($lineStateTax + $lineLocalTax, 2);
             }
 
-            $taxableAmount += $itemTaxableAmount;
-            $tax += $itemTax;
+            $taxableAmount = round($taxableAmount + $lineTaxableAmount, 2);
+            $stateTaxAmount = round($stateTaxAmount + $lineStateTax, 2);
+            $localTaxAmount = round($localTaxAmount + $lineLocalTax, 2);
+            $tax = round($tax + $lineTax, 2);
 
             $itemDetails[$item->id] = [
-                'product_total' => $itemTotal,
-                'taxable_amount' => $itemTaxableAmount,
+                'product_total' => $grossAmount,
+                'original_total' => $grossAmount,
+                'taxable_amount' => $lineTaxableAmount,
                 'state_rate' => $stateRate,
-                'state_tax' => $stateTax,
+                'state_tax' => $lineStateTax,
+                'state_tax_amount' => $lineStateTax,
                 'local_rate' => $localRate,
-                'local_tax' => $localTax,
+                'local_tax' => $lineLocalTax,
+                'local_tax_amount' => $lineLocalTax,
                 'combined_rate' => $combinedRate,
-                'tax' => $itemTax,
+                'tax' => $lineTax,
+                'allocated_discount' => 0.0,
+                'discounted_total' => $grossAmount,
             ];
         }
 
@@ -3158,6 +3189,136 @@ class StoreStripePaymentController extends Controller
             'combined_rate' => $combinedRate,
             'taxable_amount' => round($taxableAmount, 2),
             'tax' => round($tax, 2),
+            'state_tax_amount' => round($stateTaxAmount, 2),
+            'local_tax_amount' => round($localTaxAmount, 2),
+            'product_total' => round($taxableAmount + $tax, 2),
+            'items' => $itemDetails,
+        ];
+    }
+
+    /**
+     * Coupon amounts in this checkout are applied to the tax-exclusive
+     * taxable subtotal. Percentage discounts are calculated against that
+     * same base; minimum-order eligibility still uses the displayed subtotal.
+     */
+    private function calculateCouponDiscount(
+        ?Coupon $coupon,
+        float $taxableSubtotal
+    ): float {
+        if (!$coupon) {
+            return 0.00;
+        }
+
+        $taxableSubtotal = round(max(0, $taxableSubtotal), 2);
+
+        if ($coupon->discount_type === 'flat') {
+            $discount = (float) $coupon->discount_value;
+        } else {
+            $discount = $taxableSubtotal * (float) $coupon->discount_value / 100;
+
+            if ((float) ($coupon->max_discount ?? 0) > 0) {
+                $discount = min($discount, (float) $coupon->max_discount);
+            }
+        }
+
+        return round(min(max(0, $discount), $taxableSubtotal), 2);
+    }
+
+    /**
+     * Allocate a coupon proportionally over the original taxable bases,
+     * then recalculate state/local tax on each discounted taxable line.
+     */
+    private function calculateDiscountedProductTax(
+        $items,
+        $productTaxSetting,
+        float $couponDiscount,
+        ?array $baseTaxCalculation = null
+    ): array {
+        $base = $baseTaxCalculation ?? $this->calculateProductTax($items, $productTaxSetting);
+
+        $stateRate = round((float) $base['state_rate'], 2);
+        $localRate = round((float) $base['local_rate'], 2);
+        $combinedRate = round((float) $base['combined_rate'], 2);
+        $taxableSubtotal = round((float) $base['taxable_amount'], 2);
+        $couponDiscount = round(min(max(0, $couponDiscount), $taxableSubtotal), 2);
+
+        $collection = $items->values();
+        $count = $collection->count();
+        $allocatedDiscount = 0.00;
+        $taxableTotal = 0.00;
+        $stateTaxTotal = 0.00;
+        $localTaxTotal = 0.00;
+        $taxTotal = 0.00;
+        $productTotal = 0.00;
+        $itemDetails = [];
+
+        foreach ($collection as $index => $item) {
+            $baseLine = $base['items'][$item->id] ?? [];
+            $originalTaxable = round((float) ($baseLine['taxable_amount'] ?? 0), 2);
+            $originalGross = round((float) ($baseLine['original_total'] ?? $item->total_price ?? 0), 2);
+
+            if ($index === $count - 1) {
+                $lineDiscount = round(max(0, $couponDiscount - $allocatedDiscount), 2);
+            } elseif ($taxableSubtotal > 0) {
+                $lineDiscount = round($couponDiscount * ($originalTaxable / $taxableSubtotal), 2);
+                $lineDiscount = min(
+                    $lineDiscount,
+                    max(0, round($couponDiscount - $allocatedDiscount, 2)),
+                    $originalTaxable
+                );
+            } else {
+                $lineDiscount = 0.00;
+            }
+
+            $lineDiscount = min($lineDiscount, $originalTaxable);
+            $allocatedDiscount = round($allocatedDiscount + $lineDiscount, 2);
+            $lineTaxable = round(max(0, $originalTaxable - $lineDiscount), 2);
+
+            if ($lineDiscount <= 0.00) {
+                // Preserve existing inclusive-tax cents for unaffected lines.
+                $lineStateTax = round((float) ($baseLine['state_tax_amount'] ?? 0), 2);
+                $lineLocalTax = round((float) ($baseLine['local_tax_amount'] ?? 0), 2);
+                $lineTax = round($lineStateTax + $lineLocalTax, 2);
+                $discountedGross = $originalGross;
+            } else {
+                $lineStateTax = round($lineTaxable * $stateRate / 100, 2);
+                $lineLocalTax = round($lineTaxable * $localRate / 100, 2);
+                $lineTax = round($lineStateTax + $lineLocalTax, 2);
+                $discountedGross = round($lineTaxable + $lineTax, 2);
+            }
+
+            $taxableTotal = round($taxableTotal + $lineTaxable, 2);
+            $stateTaxTotal = round($stateTaxTotal + $lineStateTax, 2);
+            $localTaxTotal = round($localTaxTotal + $lineLocalTax, 2);
+            $taxTotal = round($taxTotal + $lineTax, 2);
+            $productTotal = round($productTotal + $discountedGross, 2);
+
+            $itemDetails[$item->id] = [
+                'original_total' => $originalGross,
+                'product_total' => $discountedGross,
+                'discounted_total' => $discountedGross,
+                'allocated_discount' => $lineDiscount,
+                'taxable_amount' => $lineTaxable,
+                'state_rate' => $stateRate,
+                'state_tax' => $lineStateTax,
+                'state_tax_amount' => $lineStateTax,
+                'local_rate' => $localRate,
+                'local_tax' => $lineLocalTax,
+                'local_tax_amount' => $lineLocalTax,
+                'combined_rate' => $combinedRate,
+                'tax' => $lineTax,
+            ];
+        }
+
+        return [
+            'state_rate' => $stateRate,
+            'local_rate' => $localRate,
+            'combined_rate' => $combinedRate,
+            'taxable_amount' => round($taxableTotal, 2),
+            'tax' => round($taxTotal, 2),
+            'state_tax_amount' => round($stateTaxTotal, 2),
+            'local_tax_amount' => round($localTaxTotal, 2),
+            'product_total' => round($productTotal, 2),
             'items' => $itemDetails,
         ];
     }
@@ -3169,14 +3330,9 @@ class StoreStripePaymentController extends Controller
      */
     private function getDeliveryCharge()
     {
-        return (float) (
-            StoreSetting::orderBy(
-                'id',
-                'desc'
-            )
-                ->first()
-                ?->delivery_charge
-                ?? 0
-        );
+        return round((float) (
+            StoreSetting::orderBy('id', 'desc')->first()?->delivery_charge ?? 0
+        ), 2);
     }
+
 }

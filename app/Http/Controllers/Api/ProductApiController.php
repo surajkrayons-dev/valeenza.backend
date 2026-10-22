@@ -24,61 +24,71 @@ class ProductApiController extends Controller
 
             $product = $query
                 ->where(function ($q) use ($request) {
-        
+
                     if ($request->filled('product_id')) {
                         $q->where('id', $request->product_id);
                     }
-        
+
                     if ($request->filled('slug')) {
                         $q->orWhere('slug', $request->slug);
                     }
                 })
                 ->first();
-        
+
             if (!$product) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Product not found'
                 ], 404);
             }
-        
+
             return response()->json([
                 'status' => true,
                 'data' => $this->fullProduct($product, $userWishlistIds)
             ]);
         }
 
-        // LIST
+        // PRODUCT LIST
         $products = $query->latest()->get();
 
         return response()->json([
             'status' => true,
-            'data'   => $products->map(fn($p) => $this->fullProduct($p, $userWishlistIds))
+            'data' => $products->map(
+                fn ($p) => $this->fullProduct($p, $userWishlistIds)
+            )
         ]);
     }
 
     private function fullProduct(Product $product, $userWishlistIds = [])
     {
         return [
-
             'id' => $product->id,
             'category_id' => $product->category_id,
             'code' => $product->code,
             'name' => $product->name,
             'slug' => $product->slug,
             'stone_name' => $product->stone_name,
-            'is_wishlist' => in_array($product->id, $userWishlistIds),
+
+            'is_wishlist' => in_array(
+                $product->id,
+                $userWishlistIds
+            ),
+
             'ratti_options' => $product->ratti_options,
             'specifications' => $product->specifications,
             'faq' => $product->faq,
-            'lab_certificates' => collect($product->lab_certificates ?? [])->map(function ($c) {
+
+            'lab_certificates' => collect(
+                $product->lab_certificates ?? []
+            )->map(function ($c) {
                 return [
                     'image' => !empty($c['image'])
                         ? asset('storage/lab_certificates/' . $c['image'])
                         : null,
                     'number' => $c['number'] ?? null
                 ];
-            }),
+            })->values(),
+
             'description' => $product->description,
             'benefits' => $product->benefits,
             'how_to_use' => $product->how_to_use,
@@ -86,23 +96,32 @@ class ProductApiController extends Controller
             'shipping_info' => $product->shipping_info,
             'origin' => $product->origin,
             'planet' => $product->planet,
+
             'meta_title' => $product->meta_title,
             'meta_description' => $product->meta_description,
             'meta_keywords' => $product->meta_keywords,
+
             'before_price' => $product->before_price,
             'after_price' => $product->after_price,
-            'weight'  => $product->weight,
-            'length'  => $product->length,
+
+            // Quantity-wise discount / bundle offers
+            'quantity_pricing' => $product->quantity_pricing ?? [],
+
+            'weight' => $product->weight,
+            'length' => $product->length,
             'breadth' => $product->breadth,
-            'height'  => $product->height,
+            'height' => $product->height,
+
             'rating_avg' => $product->rating_avg,
             'rating_count' => $product->rating_count,
             'stock_qty' => $product->stock_qty,
             'stock_status' => $product->stock_status,
             'status' => $product->status,
+
             'image' => $product->image
                 ? asset('storage/product/' . $product->image)
                 : null,
+
             'images' => $product->images->map(function ($img) {
                 return [
                     'id' => $img->id,
@@ -110,7 +129,8 @@ class ProductApiController extends Controller
                     'image' => asset('storage/product/' . $img->images),
                     'file_name' => $img->images
                 ];
-            }),
+            })->values(),
+
             'category' => $product->category,
             'created_at' => $product->created_at,
             'updated_at' => $product->updated_at,
@@ -129,7 +149,9 @@ class ProductApiController extends Controller
 
         return response()->json([
             'status' => true,
-            'data' => $products->map(fn($p) => $this->fullProduct($p, [$p->id]))
+            'data' => $products->map(
+                fn ($p) => $this->fullProduct($p, [$p->id])
+            )
         ]);
     }
 
@@ -141,8 +163,11 @@ class ProductApiController extends Controller
 
         $user = auth()->user();
 
-        if ($user->wishlistProducts()->where('product_id', $request->product_id)->exists()) {
-
+        if (
+            $user->wishlistProducts()
+                ->where('product_id', $request->product_id)
+                ->exists()
+        ) {
             return response()->json([
                 'status' => false,
                 'message' => 'Product already in wishlist'
@@ -165,8 +190,11 @@ class ProductApiController extends Controller
 
         $user = auth()->user();
 
-        if (!$user->wishlistProducts()->where('product_id', $request->product_id)->exists()) {
-
+        if (
+            !$user->wishlistProducts()
+                ->where('product_id', $request->product_id)
+                ->exists()
+        ) {
             return response()->json([
                 'status' => false,
                 'message' => 'Product not in wishlist'
