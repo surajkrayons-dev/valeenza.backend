@@ -34,6 +34,7 @@ class Product extends Model
 
         'before_price',
         'after_price',
+        'quantity_pricing',
 
         'hsn_code',
         'gst_rate',
@@ -67,6 +68,7 @@ class Product extends Model
         'meta_keywords' => 'array',
         'before_price' => 'float',
         'after_price' => 'float',
+        'quantity_pricing' => 'array',
         'gst_rate' => 'float',
         'weight' => 'float',
         'length' => 'float',

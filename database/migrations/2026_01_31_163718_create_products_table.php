@@ -38,6 +38,7 @@ return new class extends Migration
             
             $table->decimal('before_price', 10, 2)->nullable();
             $table->decimal('after_price', 10, 2)->nullable();
+            $table->json('quantity_pricing')->nullable();
             $table->string('hsn_code')->nullable()->default('7103');
             $table->decimal('gst_rate', 5, 2)->default(0.5);
 

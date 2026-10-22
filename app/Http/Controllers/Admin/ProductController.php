@@ -134,11 +134,36 @@ class ProductController extends AdminController
 
             'media' => 'nullable|array',
             'media.*' => 'file|mimes:jpg,jpeg,png,webp,mp4,webm|max:20480',
+
+            'quantity_pricing' => 'nullable|array',
+            'quantity_pricing.*.min_quantity' => 'required|integer|min:2',
+            'quantity_pricing.*.discount_percent' => 'required|numeric|min:0|max:100',
+            'quantity_pricing.*.free_shipping' => 'nullable|boolean',
         ]);
 
         DB::beginTransaction();
 
         $rattiOptions = $this->normalizeRatti($request->ratti_options);
+
+        $quantityPricing = collect(
+            $request->input('quantity_pricing', [])
+        )->map(function ($tier) {
+            return [
+                'min_quantity' => (int) $tier['min_quantity'],
+
+                'discount_percent' => round(
+                    (float) $tier['discount_percent'],
+                    2
+                ),
+
+                'free_shipping' => filter_var(
+                    $tier['free_shipping'] ?? false,
+                    FILTER_VALIDATE_BOOLEAN
+                ),
+            ];
+        })->values()->all();
+
+        $quantityPricing = $quantityPricing ?: null;
 
         $labCertificates = [];
 
@@ -199,6 +224,7 @@ class ProductController extends AdminController
 
                 'before_price' => $request->before_price,
                 'after_price' => $request->after_price,
+                'quantity_pricing' => $quantityPricing,
 
                 'hsn_code' => $request->hsn_code ?? '71162000',
                 'gst_rate' => $request->gst_rate ?? 3,
@@ -293,69 +319,155 @@ class ProductController extends AdminController
             'hsn_code' => 'nullable|string|max:50',
             'gst_rate' => 'nullable|numeric|min:0|max:100',
 
-            'weight'   => 'nullable|numeric|min:0',
-            'length'   => 'nullable|numeric|min:0',
-            'breadth'  => 'nullable|numeric|min:0',
-            'height'   => 'nullable|numeric|min:0',
+            'weight' => 'nullable|numeric|min:0',
+            'length' => 'nullable|numeric|min:0',
+            'breadth' => 'nullable|numeric|min:0',
+            'height' => 'nullable|numeric|min:0',
 
             'lab_certificates' => 'nullable|array',
-            'lab_certificates.*.image' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
+            'lab_certificates.*.image' =>
+                'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:4096',
             'lab_certificates.*.number' => 'nullable|string|max:255',
 
             'media' => 'nullable|array',
             'media.*' => 'file|mimes:jpg,jpeg,png,webp,mp4,webm|max:20480',
+
+            // Quantity-based pricing
+            'quantity_pricing' => 'nullable|array',
+            'quantity_pricing.*.min_quantity' =>
+                'required|integer|min:2|distinct',
+            'quantity_pricing.*.discount_percent' =>
+                'required|numeric|min:0|max:100',
+            'quantity_pricing.*.free_shipping' => 'nullable|boolean',
+
+            'stock_qty' => 'required|integer|min:0',
+            'status' => 'nullable|in:0,1',
         ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | QUANTITY PRICING
+        |--------------------------------------------------------------------------
+        |
+        | If the request contains quantity_pricing, update it.
+        | If the field is omitted, preserve existing pricing.
+        |
+        */
+
+        $quantityPricingProvided = array_key_exists(
+            'quantity_pricing',
+            $request->all()
+        );
+
+        $quantityPricing = null;
+
+        if ($quantityPricingProvided) {
+            $quantityPricing = collect(
+                $request->input('quantity_pricing', [])
+            )
+                ->map(function ($tier) {
+                    return [
+                        'min_quantity' => (int) $tier['min_quantity'],
+
+                        'discount_percent' => round(
+                            (float) $tier['discount_percent'],
+                            2
+                        ),
+
+                        'free_shipping' => filter_var(
+                            $tier['free_shipping'] ?? false,
+                            FILTER_VALIDATE_BOOLEAN
+                        ),
+                    ];
+                })
+                ->sortBy('min_quantity')
+                ->values()
+                ->all();
+
+            $quantityPricing = $quantityPricing ?: null;
+        }
 
         DB::beginTransaction();
 
-        $labCertificates = [];
-
-        $oldCertificates = $product->lab_certificates ?? [];
-
-        if ($request->has('lab_certificates')) {
-
-            foreach ($request->lab_certificates as $key => $cert) {
-
-                $imageName = $oldCertificates[$key]['image'] ?? null;
-
-                if ($request->hasFile("lab_certificates.$key.image")) {
-
-                    if ($imageName && file_exists(public_path('storage/lab_certificates/'.$imageName))) {
-                        unlink(public_path('storage/lab_certificates/'.$imageName));
-                    }
-
-                    $imageName = uploadFile(
-                        "lab_certificates.$key.image",
-                        null,
-                        null,
-                        'lab_certificates'
-                    );
-                }
-
-                if ($imageName || !empty($cert['number'])) {
-
-                    $labCertificates[] = [
-                    'image' => $imageName,
-                    'number' => $cert['number'] ?? null
-                    ];
-
-                }
-            }
-        }
+        $filesToDeleteAfterCommit = [];
 
         try {
+            /*
+            |--------------------------------------------------------------------------
+            | LAB CERTIFICATES
+            |--------------------------------------------------------------------------
+            */
 
-            $product->update([
+            $oldCertificates = $product->lab_certificates ?? [];
 
+            if (is_string($oldCertificates)) {
+                $oldCertificates = json_decode(
+                    $oldCertificates,
+                    true
+                ) ?: [];
+            }
+
+            // Preserve existing certificates when the field is omitted.
+            $labCertificates = $oldCertificates;
+
+            if ($request->has('lab_certificates')) {
+                $labCertificates = [];
+
+                foreach (
+                    $request->input('lab_certificates', [])
+                    as $key => $cert
+                ) {
+                    $imageName = $oldCertificates[$key]['image'] ?? null;
+
+                    if ($request->hasFile("lab_certificates.$key.image")) {
+                        $newImageName = uploadFile(
+                            "lab_certificates.$key.image",
+                            null,
+                            null,
+                            'lab_certificates'
+                        );
+
+                        if ($newImageName) {
+                            if ($imageName) {
+                                $filesToDeleteAfterCommit[] =
+                                    public_path(
+                                        'storage/lab_certificates/' . $imageName
+                                    );
+                            }
+
+                            $imageName = $newImageName;
+                        }
+                    }
+
+                    if ($imageName || !empty($cert['number'])) {
+                        $labCertificates[] = [
+                            'image' => $imageName,
+                            'number' => $cert['number'] ?? null,
+                        ];
+                    }
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | PRODUCT UPDATE DATA
+            |--------------------------------------------------------------------------
+            */
+
+            $updateData = [
                 'category_id' => $request->category_id,
 
-                'name' => $request->name,
+                // Also save the validated product code.
+                'code' => $request->code,
 
+                'name' => $request->name,
                 'slug' => Str::slug($request->slug),
 
                 'stone_name' => $request->stone_name,
 
-                'ratti_options' => $this->normalizeRatti($request->ratti_options),
+                'ratti_options' => $this->normalizeRatti(
+                    $request->ratti_options
+                ),
 
                 'description' => $request->description,
 
@@ -363,9 +475,13 @@ class ProductController extends AdminController
                 'how_to_use' => $request->how_to_use,
                 'purity' => $request->purity,
 
-                'specifications' => $this->normalizeSpecifications($request->specifications),
+                'specifications' => $this->normalizeSpecifications(
+                    $request->specifications
+                ),
 
-                'faq' => $this->normalizeFaq($request->faq),
+                'faq' => $this->normalizeFaq(
+                    $request->faq
+                ),
 
                 'shipping_info' => $request->shipping_info,
 
@@ -382,40 +498,68 @@ class ProductController extends AdminController
                 'hsn_code' => $request->hsn_code ?? '71162000',
                 'gst_rate' => $request->gst_rate ?? 3,
 
-                'weight'  => $request->weight ?? 0,
-                'length'  => $request->length ?? 0,
+                'weight' => $request->weight ?? 0,
+                'length' => $request->length ?? 0,
                 'breadth' => $request->breadth ?? 0,
-                'height'  => $request->height ?? 0,
+                'height' => $request->height ?? 0,
 
                 'stock_qty' => $request->stock_qty,
-                'stock_status' => Product::resolveStockStatus($request->stock_qty),
 
-                'status' => (int)$request->input('status',1),
+                'stock_status' => Product::resolveStockStatus(
+                    $request->stock_qty
+                ),
 
-                'lab_certificates' => $labCertificates
+                'status' => (int) $request->input('status', 1),
 
-                ]);
+                'lab_certificates' => $labCertificates,
+            ];
+
+            /*
+            * Update quantity pricing only when the field is provided.
+            * An explicitly empty array clears the pricing.
+            */
+            if ($quantityPricingProvided) {
+                $updateData['quantity_pricing'] = $quantityPricing;
+            }
+
+            $product->update($updateData);
+
+            /*
+            |--------------------------------------------------------------------------
+            | PRODUCT IMAGE
+            |--------------------------------------------------------------------------
+            */
 
             if ($request->hasFile('image')) {
+                $oldImage = $product->image;
 
-                if ($product->image && file_exists(public_path('storage/product/'.$product->image))) {
-                    unlink(public_path('storage/product/'.$product->image));
-                }
-
-                $product->image = uploadFile(
+                $newImage = uploadFile(
                     'image',
                     null,
                     null,
                     'product'
                 );
 
-                $product->save();
+                if ($newImage) {
+                    $product->image = $newImage;
+                    $product->save();
+
+                    if ($oldImage) {
+                        $filesToDeleteAfterCommit[] = public_path(
+                            'storage/product/' . $oldImage
+                        );
+                    }
+                }
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | PRODUCT MEDIA
+            |--------------------------------------------------------------------------
+            */
+
             if ($request->hasFile('media')) {
-
                 foreach ($request->file('media') as $index => $file) {
-
                     $fieldName = "media.$index";
 
                     $media = uploadMedia(
@@ -426,11 +570,10 @@ class ProductController extends AdminController
                     );
 
                     if ($media) {
-
                         ProductImage::create([
                             'product_id' => $product->id,
                             'images' => basename($media['path']),
-                            'type' => $media['type']
+                            'type' => $media['type'],
                         ]);
                     }
                 }
@@ -438,17 +581,39 @@ class ProductController extends AdminController
 
             DB::commit();
 
+            /*
+            * Delete replaced files only after the database commits.
+            */
+            foreach ($filesToDeleteAfterCommit as $path) {
+                if (is_file($path)) {
+                    @unlink($path);
+                }
+            }
+
             return response()->json([
-                'message' => 'Product updated successfully'
+                'status' => true,
+                'message' => 'Product updated successfully',
+                'data' => [
+                    'product_id' => $product->id,
+                    'quantity_pricing' => $product->fresh()
+                        ->quantity_pricing,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+
+            \Log::error('PRODUCT UPDATE ERROR', [
+                'product_id' => $id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
 
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-            \Log::error($e);
-
             return response()->json([
-                'message' => 'Something went wrong'
+                'status' => false,
+                'message' => 'Something went wrong while updating the product.',
             ], 500);
         }
     }
