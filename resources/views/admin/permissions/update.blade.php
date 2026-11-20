@@ -42,6 +42,8 @@
                 ['key' => 'employee_earnings', 'label' => 'Employee Earnings', 'icon' => 'fas fa-money-bill-wave'],
                 ['key' => 'returns', 'label' => 'Returns', 'icon' => 'fas fa-undo'],
                 ['key' => 'store_banners', 'label' => 'Store Banner', 'icon' => 'fas fa-images'],
+                ['key' => 'blog_categories', 'label' => 'Blog Category', 'icon' => 'fas fa-layer-group'],
+                ['key' => 'blogs', 'label' => 'Blogs', 'icon' => 'fas fa-blog'],
             ];
             @endphp
 
